@@ -48,10 +48,10 @@ button{border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight
   <div id="canvas-wrap">
     <canvas id="sim"></canvas>
     <div id="legend">
-      <div class="legend-row"><div class="legend-swatch" style="background:#4488ff"></div>Cold (0°C)</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#22c55e"></div>Mild (18°C)</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#f97316"></div>Warm (25°C)</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#ef4444"></div>Hot (40°C)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#4488ff"></div>Cold (0&deg;C)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#22c55e"></div>Mild (18&deg;C)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#f97316"></div>Warm (25&deg;C)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#ef4444"></div>Hot (40&deg;C)</div>
     </div>
     <div id="fps-counter">60 FPS</div>
   </div>
@@ -81,7 +81,6 @@ button{border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight
 <script>
 'use strict';
 
-// ─── GLOBAL STATE ────────────────────────────────────────────────────────────
 const state = {
   heat: true,
   summer: false,
@@ -89,10 +88,9 @@ const state = {
   veranda: false,
   velux: false,
   facade: false,
-  speed: false  // false=1x, true=3x
+  speed: false
 };
 
-// ─── CANVAS SETUP ────────────────────────────────────────────────────────────
 const canvas = document.getElementById('sim');
 const ctx = canvas.getContext('2d', {alpha:false});
 
@@ -115,41 +113,27 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// ─── GEOMETRY DEFINITIONS (in SIM coords 0..1000 x 0..700) ──────────────────
-// Origin: top-left. Y increases downward.
-// Layout:
-//  Basement:   y 490..700, x 0..700
-//  RDC:        y 280..490, x 0..700
-//  R+1:        y 100..280, x 0..700
-//  Attic R+2:  y 0..100  (mansard), x 0..700
-//  Veranda:    y 280..460, x 700..1000 (raised, on top of void)
-
 const G = {
-  // Level boundaries (sim Y coords)
-  basY1: 490, basY2: 700,   // basement
-  rdcY1: 280, rdcY2: 490,   // ground floor
-  r1Y1:  100, r1Y2:  280,   // first floor
-  r2Y1:    0, r2Y2:  100,   // attic
-  // House horizontal extent
+  basY1: 490, basY2: 700,
+  rdcY1: 280, rdcY2: 490,
+  r1Y1:  100, r1Y2:  280,
+  r2Y1:    0, r2Y2:  100,
   houseX1: 0, houseX2: 700,
-  // Veranda
   verX1: 700, verX2: 1000,
-  verY1: 285, verY2: 460,   // veranda floor/walls
-  verRoofLeft: 0,  // computed
-  verRoofRight: 0, // computed
+  verY1: 285, verY2: 460,
+  verRoofLeft: 0,
+  verRoofRight: 0,
 };
 
-// All solid wall segments and open passages stored here
-let walls = [];       // [{x1,y1,x2,y2, type}]  type: 'wall'|'glass'|'ground'
-let rooms = [];       // [{id, x1,y1,x2,y2, type}]
-let radiators = [];   // [{x,y,w,h,zone}]
-let openings = [];    // [{x1,y1,x2,y2, state_key, type}]
-let heatZones = [];   // [{x1,y1,x2,y2, temp, cond, stateKey?}]
+let walls = [];
+let rooms = [];
+let radiators = [];
+let openings = [];
+let heatZones = [];
 
-// Grid for fast boundary lookup (collision cells)
 const GRID_COLS = 50, GRID_ROWS = 35;
 let gridW, gridH;
-let wallGrid = [];    // array of sets of wall indices
+let wallGrid = [];
 
 function buildGeometry() {
   walls = [];
@@ -158,134 +142,75 @@ function buildGeometry() {
   openings = [];
   heatZones = [];
 
-  const S = SIM_W, SH = SIM_H;
+  addWall(0, G.rdcY1, 0, G.rdcY2, 'wall');
+  addWall(G.houseX2, G.rdcY1, G.houseX2, G.rdcY2, 'wall');
+  addWall(0, G.rdcY2, G.houseX2, G.rdcY2, 'wall');
+  addWall(0, G.rdcY1, G.houseX2, G.rdcY1, 'wall');
 
-  // ─── OUTER ENVELOPE ──────────────────────────────────────────────────────
-  // Ground floor outer walls
-  addWall(0, G.rdcY1, 0, G.rdcY2, 'wall');        // SW facade L
-  addWall(G.houseX2, G.rdcY1, G.houseX2, G.rdcY2, 'wall'); // NE wall
-  addWall(0, G.rdcY2, G.houseX2, G.rdcY2, 'wall'); // RDC floor (also BAS ceiling)
-  addWall(0, G.rdcY1, G.houseX2, G.rdcY1, 'wall'); // RDC ceiling = R1 floor
-
-  // Basement
   addWall(0, G.basY1, 0, G.basY2, 'wall');
   addWall(G.houseX2, G.basY1, G.houseX2, G.basY2, 'wall');
-  addWall(0, G.basY2, G.houseX2, G.basY2, 'ground'); // basement floor (ground)
+  addWall(0, G.basY2, G.houseX2, G.basY2, 'ground');
 
-  // R+1
   addWall(0, G.r1Y1, 0, G.r1Y2, 'wall');
   addWall(G.houseX2, G.r1Y1, G.houseX2, G.r1Y2, 'wall');
-  addWall(0, G.r1Y2, G.houseX2, G.r1Y2, 'wall'); // R1 floor = RDC ceiling (already added)
-  addWall(0, G.r1Y1, G.houseX2, G.r1Y1, 'wall'); // R1 ceiling = R2 floor
+  addWall(0, G.r1Y2, G.houseX2, G.r1Y2, 'wall');
+  addWall(0, G.r1Y1, G.houseX2, G.r1Y1, 'wall');
 
-  // Attic R+2 (mansard: sloped sides)
-  // Mansard: from x=0,y=100 rises to peak at x=350,y=0, then down to x=700,y=100
-  addWall(0, G.r1Y1, 180, G.r2Y1, 'wall');   // left slope (SW)
-  addWall(180, G.r2Y1, 520, G.r2Y1, 'wall'); // flat ridge
-  addWall(520, G.r2Y1, G.houseX2, G.r1Y1, 'wall'); // right slope (NE)
+  addWall(0, G.r1Y1, 180, G.r2Y1, 'wall');
+  addWall(180, G.r2Y1, 520, G.r2Y1, 'wall');
+  addWall(520, G.r2Y1, G.houseX2, G.r1Y1, 'wall');
 
-  // ─── VERANDA ─────────────────────────────────────────────────────────────
-  // Veranda sits at y 285..460, x 700..1000
-  // Sloped glass roof from (700, 285) down to (1000, 350)
-  addWall(G.verX1, G.verY1, G.verX2, G.verY1+65, 'glass'); // sloped roof
-  addWall(G.verX2, G.verY1+65, G.verX2, G.verY2, 'glass'); // NE glass wall
-  addWall(G.verX1, G.verY2, G.verX2, G.verY2, 'wall');     // veranda floor
-  // Left wall (shared with salon): mostly brick, has openings
+  addWall(G.verX1, G.verY1, G.verX2, G.verY1+65, 'glass');
+  addWall(G.verX2, G.verY1+65, G.verX2, G.verY2, 'glass');
+  addWall(G.verX1, G.verY2, G.verX2, G.verY2, 'wall');
   addWall(G.verX1, G.verY1, G.verX1, G.verY2, 'wall');
 
-  // ─── INTERNAL FLOORS (with staircase openings) ──────────────────────────
-  // RDC/BAS floor: x 0..700, with staircase at x 400..480
   addWallSegmented(0, G.rdcY2, G.houseX2, G.rdcY2, 'wall', 0, [[400,480]]);
-  // R1/RDC ceiling: x 0..700, with staircase at x 350..430
   addWallSegmented(0, G.rdcY1, G.houseX2, G.rdcY1, 'wall', 0, [[350,430]]);
-  // Attic floor: x 0..700, with staircase at x 300..380
   addWallSegmented(0, G.r1Y1, G.houseX2, G.r1Y1, 'wall', 0, [[300,380]]);
 
-  // ─── INTERNAL PARTITIONS ─────────────────────────────────────────────────
-  // RDC: Hallway/Kitchen partition at x=200, y: rdcY1..rdcY2
-  //   with door opening y: rdcY1+60..rdcY1+120
   addWallSegmented(200, G.rdcY1, 200, G.rdcY2, 'wall', 1, [[G.rdcY1+60, G.rdcY1+120]]);
 
-  // RDC: Kitchen/Salon half-wall + verrière: partition at x=400
-  //   Half-wall bottom: y rdcY1+100..rdcY2, verrière glass: y rdcY1+10..rdcY1+100 (open imposte at very top)
-  addWall(400, G.rdcY1+100, 400, G.rdcY2, 'wall');    // half-wall below
-  addWall(400, G.rdcY1+20, 400, G.rdcY1+100, 'glass'); // glass verrière
+  addWall(400, G.rdcY1+100, 400, G.rdcY2, 'wall');
+  addWall(400, G.rdcY1+20, 400, G.rdcY1+100, 'glass');
 
-  // RDC: Toilets partition at x=200, small room y: rdcY1..rdcY1+80 (x 0..200... actually right of entry)
-  // Entry is x 0..200. Toilets are a small room at x 100..200, y rdcY1+80..rdcY2-30
-  addWall(100, G.rdcY1+80, 200, G.rdcY1+80, 'wall'); // toilet top
-  addWall(100, G.rdcY1+80, 100, G.rdcY2, 'wall');     // toilet left
+  addWall(100, G.rdcY1+80, 200, G.rdcY1+80, 'wall');
+  addWall(100, G.rdcY1+80, 100, G.rdcY2, 'wall');
 
-  // Salon/Veranda dividing wall (already outer wall): has French door + window
-  // French door opening: y rdcY1+80..rdcY1+170  => open passage at verX1 in that range
-  // Window: y rdcY1+30..rdcY1+70 (glass)
   addWall(G.verX1, G.rdcY1, G.verX1, G.rdcY1+25, 'wall');
-  addWall(G.verX1, G.rdcY1+25, G.verX1, G.rdcY1+65, 'glass'); // window
+  addWall(G.verX1, G.rdcY1+25, G.verX1, G.rdcY1+65, 'glass');
   addWall(G.verX1, G.rdcY1+65, G.verX1, G.rdcY1+75, 'wall');
-  // French door (opening by default=closed; toggle opens it)
-  addWall(G.verX1, G.rdcY1+75, G.verX1, G.rdcY1+165, 'wall'); // door panel (closed state drawn)
+  addWall(G.verX1, G.rdcY1+75, G.verX1, G.rdcY1+165, 'wall');
   addWall(G.verX1, G.rdcY1+165, G.verX1, G.verY2, 'wall');
 
-  // R+1 partitions
-  // Baby room: x 0..230, partition at x=230 with door
   addWallSegmented(230, G.r1Y1, 230, G.r1Y2, 'wall', 1, [[G.r1Y1+50, G.r1Y1+110]]);
-  // Bathroom/landing: x 230..480, partition at x=480 with door
   addWallSegmented(480, G.r1Y1, 480, G.r1Y2, 'wall', 1, [[G.r1Y1+50, G.r1Y1+110]]);
-  // Bathtub in bathroom: x 250..360, y r1Y1+130..r1Y2 (solid object, no air)
 
-  // Basement partitions
-  // Garage/SAS at x=0..200 (left), Atelier at right x=500..700
-  // SAS door at x=200, y: basY1+30..basY1+90
   addWallSegmented(200, G.basY1, 200, G.basY2, 'wall', 1, [[G.basY1+30, G.basY1+90]]);
-  // Atelier partition at x=500
   addWallSegmented(500, G.basY1, 500, G.basY2, 'wall', 1, [[G.basY1+30, G.basY1+90]]);
 
-  // ─── WINDOWS (glass segments in outer walls) ──────────────────────────────
-  // These are already embedded in outer walls above; add heat-exchange zones below
-
-  // ─── RADIATORS ───────────────────────────────────────────────────────────
-  // Basement: none specified (ground provides warmth)
-  // RDC Hallway
   addRadiator(30, G.rdcY2-20, 60, 12, 'rdc');
-  // RDC Kitchen
   addRadiator(320, G.rdcY2-20, 60, 12, 'rdc');
-  // RDC Salon
   addRadiator(570, G.rdcY2-20, 60, 12, 'rdc');
-  // Veranda (on salon wall)
   addRadiator(G.verX1+10, G.verY2-20, 50, 10, 'veranda');
-  // R+1 Baby room
   addRadiator(30, G.r1Y2-20, 55, 12, 'r1');
-  // R+1 Bathroom towel heater
   addRadiator(460, G.r1Y1+80, 12, 50, 'r1');
-  // R+1 Parent room
   addRadiator(640, G.r1Y2-20, 55, 12, 'r1');
-  // R+2 Left
   addRadiator(100, G.r2Y1+20, 55, 12, 'r2');
-  // R+2 Right
   addRadiator(560, G.r2Y1+20, 55, 12, 'r2');
 
-  // ─── HEAT/COLD ZONES ─────────────────────────────────────────────────────
-  // Basement ground constant ~13°C
   heatZones.push({x1:0, y1:G.basY2-20, x2:G.houseX2, y2:G.basY2, temp:0.22, cond:0.008, type:'ground'});
 
-  // External window glass zones (facade windows)
-  // Winter: cold sink; Summer: warm source
-  // SW facade windows: RDC entry window, kitchen window
-  addGlassZone(0, G.rdcY1+20, 8, G.rdcY1+70, 'facade');   // entry window
-  addGlassZone(0, G.rdcY1+20, 8, G.rdcY1+60, 'facade');   // kitchen window (same side)
-  // NE facade: salon window, R+1 windows
+  addGlassZone(0, G.rdcY1+20, 8, G.rdcY1+70, 'facade');
+  addGlassZone(0, G.rdcY1+20, 8, G.rdcY1+60, 'facade');
   addGlassZone(G.houseX2-8, G.rdcY1+30, G.houseX2, G.rdcY1+70, 'facade');
   addGlassZone(G.houseX2-8, G.r1Y1+30, G.houseX2, G.r1Y1+80, 'facade');
   addGlassZone(G.houseX2-8, G.r1Y1+100, G.houseX2, G.r1Y1+150, 'facade');
-  // Veranda glass (always active, season-dependent)
-  addGlassZone(G.verX1+2, G.verY1, G.verX2-2, G.verY1+70, 'veranda_glass'); // sloped roof zone
-  addGlassZone(G.verX2-10, G.verY1+70, G.verX2, G.verY2-10, 'veranda_glass'); // NE wall
-  // Attic Velux zones
-  addGlassZone(240, G.r1Y1-8, 290, G.r1Y1, 'velux_r2');  // small velux landing
-  addGlassZone(100, 0, 170, 8, 'velux_r2_big');           // large velux left
-  addGlassZone(540, 0, 620, 8, 'velux_r2_big');           // large velux right
-
-  // Cave (basement) outer door zone - small draft
+  addGlassZone(G.verX1+2, G.verY1, G.verX2-2, G.verY1+70, 'veranda_glass');
+  addGlassZone(G.verX2-10, G.verY1+70, G.verX2, G.verY2-10, 'veranda_glass');
+  addGlassZone(240, G.r1Y1-8, 290, G.r1Y1, 'velux_r2');
+  addGlassZone(100, 0, 170, 8, 'velux_r2_big');
+  addGlassZone(540, 0, 620, 8, 'velux_r2_big');
   addGlassZone(0, G.basY1+30, 12, G.basY1+90, 'cave_door');
   addGlassZone(G.houseX2-12, G.basY1+30, G.houseX2, G.basY1+90, 'cave_door');
 
@@ -297,12 +222,9 @@ function addWall(x1,y1,x2,y2,type){
 }
 
 function addWallSegmented(ax1,ay1,ax2,ay2,type,axis,gaps){
-  // axis 0=horizontal (y varies), 1=vertical (x varies)
-  // gaps: [[gapStart,gapEnd], ...] in the varying coordinate
   const isVert = (ax1===ax2);
   let prev = isVert ? ay1 : ax1;
   const end = isVert ? ay2 : ax2;
-  // gaps are already sorted by start
   for(const [gs,ge] of gaps){
     if(prev < gs){
       if(isVert) addWall(ax1,prev,ax2,gs,type);
@@ -324,7 +246,6 @@ function addGlassZone(x1,y1,x2,y2,key){
   heatZones.push({x1,y1,x2,y2,type:'glass',key});
 }
 
-// ─── WALL GRID ───────────────────────────────────────────────────────────────
 function buildWallGrid(){
   gridW = SIM_W / GRID_COLS;
   gridH = SIM_H / GRID_ROWS;
@@ -349,14 +270,12 @@ function getWallsNear(x,y){
   return wallGrid[r*GRID_COLS+c];
 }
 
-// ─── PARTICLE SYSTEM ─────────────────────────────────────────────────────────
 const MAX_P = 1600;
-// Packed arrays for performance
 const px = new Float32Array(MAX_P);
 const py = new Float32Array(MAX_P);
 const pvx= new Float32Array(MAX_P);
 const pvy= new Float32Array(MAX_P);
-const pt = new Float32Array(MAX_P); // temperature 0..1 (0=cold, 1=hot)
+const pt = new Float32Array(MAX_P);
 let N = 0;
 
 const PARTICLE_R = 3.0;
@@ -366,13 +285,12 @@ const BUOY_FORCE = 0.04;
 const HEAT_RADIUS = 30;
 const HEAT_RATE = 0.012;
 const COOL_RATE = 0.004;
-const CONDUCT_RATE = 0.0008; // particle-particle conduction
+const CONDUCT_RATE = 0.0008;
 const DRAFT_FORCE = 0.6;
 
 function spawnParticles(){
   N = 0;
   const regions = [
-    // [zone_id, x1,y1,x2,y2, count, initTemp]
     ['bas_l',    5, G.basY1+5, 195, G.basY2-5, 120, 0.22],
     ['bas_c',  205, G.basY1+5, 495, G.basY2-5, 150, 0.22],
     ['bas_r',  505, G.basY1+5, 695, G.basY2-5, 120, 0.22],
@@ -399,7 +317,6 @@ function spawnParticles(){
   }
 }
 
-// ─── COLLISION / BOUNDARY ────────────────────────────────────────────────────
 function segDistSq(px,py,ax,ay,bx,by){
   const dx=bx-ax, dy=by-ay;
   const lenSq=dx*dx+dy*dy;
@@ -414,8 +331,7 @@ function reflectOffWall(i, wx1,wy1,wx2,wy2){
   const dx=wx2-wx1, dy=wy2-wy1;
   const len=Math.sqrt(dx*dx+dy*dy);
   if(len<.001) return;
-  const nx=-dy/len, ny=dx/len; // normal
-  // ensure normal points away from wall toward particle
+  const nx=-dy/len, ny=dx/len;
   const dot=pvx[i]*nx+pvy[i]*ny;
   if(dot<0){
     pvx[i]-=2*dot*nx;
@@ -423,7 +339,6 @@ function reflectOffWall(i, wx1,wy1,wx2,wy2){
     pvx[i]*=0.6;
     pvy[i]*=0.6;
   }
-  // push particle away
   const px2=px[i], py2=py[i];
   const t2=((px2-wx1)*dx+(py2-wy1)*dy)/(dx*dx+dy*dy);
   const tc=Math.max(0,Math.min(1,t2));
@@ -437,20 +352,10 @@ function reflectOffWall(i, wx1,wy1,wx2,wy2){
   }
 }
 
-// Which walls are "active" (solid) depends on open/closed states
-function isWallActive(idx){
-  // For now all walls are always active (openings are represented by gaps already)
-  // Exception: veranda French door toggle
-  return true;
-}
-
-// ─── TEMPERATURE HELPERS ──────────────────────────────────────────────────────
-// Convert normalized temp [0,1] to Celsius: 0=0°C, 1=50°C
 function toCelsius(t){ return t*50; }
 function fromCelsius(c){ return c/50; }
 
 function tempColor(t){
-  // cold=blue(0,100,255), mild=green(34,197,94), warm=orange(249,115,22), hot=red(239,68,68)
   t = Math.max(0,Math.min(1,t));
   if(t<0.33){
     const f=t/0.33;
@@ -464,67 +369,46 @@ function tempColor(t){
   }
 }
 
-// Precompute color lookup table
 const COLOR_LUT = new Array(256);
 for(let i=0;i<256;i++) COLOR_LUT[i]=tempColor(i/255);
 
 function colorIdx(t){ return Math.round(Math.max(0,Math.min(1,t))*255); }
 
-// ─── SIMULATION STEP ─────────────────────────────────────────────────────────
 let lastTime = 0;
 let fps = 60;
 let fpsTime = 0;
 let fpsCount = 0;
 
-// Wind/draft vectors when openings are open
 function getDraftForce(x,y){
   let fx=0, fy=0;
-  // Cave door open: draft from SW (left) into basement at bottom
   if(state.cave){
-    if(y>G.basY1 && y<G.basY2 && x<300){
-      fx += DRAFT_FORCE * 0.3;
-    }
-    if(y>G.basY1 && y<G.basY2 && x>450){
-      fx += DRAFT_FORCE * 0.15;
-    }
+    if(y>G.basY1 && y<G.basY2 && x<300){ fx += DRAFT_FORCE * 0.3; }
+    if(y>G.basY1 && y<G.basY2 && x>450){ fx += DRAFT_FORCE * 0.15; }
   }
-  // Veranda bay open: exchange between salon and veranda
   if(state.veranda){
     if(x>580 && x<760 && y>G.rdcY1 && y<G.rdcY2){
       fx += DRAFT_FORCE * 0.2 * (state.summer ? 1 : -0.3);
     }
   }
-  // Velux open: upward chimney in attic
   if(state.velux){
-    if(x>80 && x<200 && y<G.r1Y1+20 && y>G.r2Y1){
-      fy -= DRAFT_FORCE * 0.35;
-    }
-    if(x>530 && x<640 && y<G.r1Y1+20 && y>G.r2Y1){
-      fy -= DRAFT_FORCE * 0.35;
-    }
+    if(x>80 && x<200 && y<G.r1Y1+20 && y>G.r2Y1){ fy -= DRAFT_FORCE * 0.35; }
+    if(x>530 && x<640 && y<G.r1Y1+20 && y>G.r2Y1){ fy -= DRAFT_FORCE * 0.35; }
   }
-  // Facade windows open: cross-ventilation SW->NE
   if(state.facade){
-    if(y>G.rdcY1 && y<G.rdcY2){
-      fx += DRAFT_FORCE * 0.25;
-    }
-    if(y>G.r1Y1 && y<G.r1Y2){
-      fx += DRAFT_FORCE * 0.25;
-    }
+    if(y>G.rdcY1 && y<G.rdcY2){ fx += DRAFT_FORCE * 0.25; }
+    if(y>G.r1Y1 && y<G.r1Y2){ fx += DRAFT_FORCE * 0.25; }
   }
   return {fx,fy};
 }
 
 function applyHeatZone(i, hz){
-  const mx=(hz.x1+hz.x2)/2, my=(hz.y1+hz.y2)/2;
-  const rw=(hz.x2-hz.x1)/2+4, rh=(hz.y2-hz.y1)/2+4;
   if(px[i]>=hz.x1-2 && px[i]<=hz.x2+2 && py[i]>=hz.y1-2 && py[i]<=hz.y2+2){
     if(hz.type==='ground'){
       pt[i] += (hz.temp - pt[i]) * hz.cond;
     } else if(hz.type==='glass'){
       let target, rate;
       if(hz.key==='veranda_glass'){
-        target = state.summer ? 0.85 : fromCelsius(state.summer?35:2);
+        target = state.summer ? 0.85 : fromCelsius(2);
         rate = state.summer ? 0.006 : 0.008;
       } else if(hz.key==='cave_door'){
         target = state.summer ? fromCelsius(20) : fromCelsius(5);
@@ -532,7 +416,7 @@ function applyHeatZone(i, hz){
       } else if(hz.key.startsWith('velux_r2')){
         target = state.summer ? fromCelsius(35) : fromCelsius(3);
         rate = state.velux ? 0.012 : 0.004;
-      } else { // facade windows
+      } else {
         target = state.summer ? fromCelsius(28) : fromCelsius(2);
         rate = state.facade ? 0.015 : 0.005;
       }
@@ -552,30 +436,19 @@ function stepOnce(dt){
   const radTemp = state.heat ? 0.92 : 0.0;
 
   for(let i=0;i<N;i++){
-    // ── Buoyancy ──
     const buoy = (pt[i]-0.5)*BUOY_FORCE;
     pvy[i] -= buoy;
-
-    // ── Thermal noise ──
     pvx[i] += (Math.random()-.5)*THERMAL_NOISE;
     pvy[i] += (Math.random()-.5)*THERMAL_NOISE;
-
-    // ── Draft / Wind ──
     const d = getDraftForce(px[i], py[i]);
     pvx[i] += d.fx * dt;
     pvy[i] += d.fy * dt;
-
-    // ── Drag ──
     pvx[i] *= DRAG;
     pvy[i] *= DRAG;
-
-    // ── Integrate ──
     px[i] += pvx[i];
     py[i] += pvy[i];
 
-    // ── Boundary containment (outer box) ──
     const isInVeranda = px[i]>G.verX1 && px[i]<G.verX2 && py[i]>G.verY1 && py[i]<G.verY2;
-
     if(!isInVeranda){
       if(px[i]<PARTICLE_R){ px[i]=PARTICLE_R; pvx[i]=Math.abs(pvx[i])*0.5; }
       if(px[i]>G.houseX2-PARTICLE_R){ px[i]=G.houseX2-PARTICLE_R; pvx[i]=-Math.abs(pvx[i])*0.5; }
@@ -586,17 +459,13 @@ function stepOnce(dt){
     if(py[i]<PARTICLE_R){ py[i]=PARTICLE_R; pvy[i]=Math.abs(pvy[i])*0.5; }
     if(py[i]>SIM_H-PARTICLE_R){ py[i]=SIM_H-PARTICLE_R; pvy[i]=-Math.abs(pvy[i])*0.5; }
 
-    // ── Internal wall collisions ──
     const nearWalls = getWallsNear(px[i], py[i]);
     for(const wi of nearWalls){
       const w=walls[wi];
       const d2=segDistSq(px[i],py[i],w.x1,w.y1,w.x2,w.y2);
-      if(d2 < PARTICLE_R*PARTICLE_R){
-        reflectOffWall(i, w.x1,w.y1,w.x2,w.y2);
-      }
+      if(d2 < PARTICLE_R*PARTICLE_R){ reflectOffWall(i, w.x1,w.y1,w.x2,w.y2); }
     }
 
-    // ── Radiator heat ──
     if(state.heat){
       for(const rad of radiators){
         const rdx=px[i]-rad.cx, rdy=py[i]-rad.cy;
@@ -604,31 +473,21 @@ function stepOnce(dt){
         if(rd2 < HEAT_RADIUS*HEAT_RADIUS){
           const factor=1-(Math.sqrt(rd2)/HEAT_RADIUS);
           pt[i] += (radTemp-pt[i])*HEAT_RATE*factor;
-          // Push warm particles up
           pvy[i] -= factor*0.15;
         }
       }
     }
 
-    // ── Glass / Ground heat exchange ──
-    for(const hz of heatZones){
-      applyHeatZone(i, hz);
-    }
+    for(const hz of heatZones){ applyHeatZone(i, hz); }
 
-    // ── Passive cooling toward exterior (window/wall conduction) ──
-    // Particles near the outer walls slowly equilibrate toward external temp
     const nearOuter = (px[i]<10 || px[i]>G.houseX2-10 || py[i]<6);
     if(nearOuter){
       const target = state.summer ? extTempHot : extTempCold;
       pt[i] += (target-pt[i])*0.003;
     }
-
-    // ── Clamp temperature ──
     pt[i] = Math.max(0, Math.min(1, pt[i]));
   }
 
-  // ── Particle-particle conduction (sampled, not all pairs) ──
-  // Every frame check ~N random pairs
   const checks = Math.min(N*2, 1200);
   for(let k=0;k<checks;k++){
     const a=(Math.random()*N)|0;
@@ -637,7 +496,7 @@ function stepOnce(dt){
     const dx=px[a]-px[b], dy=py[a]-py[b];
     if(Math.abs(dx)>12||Math.abs(dy)>12) continue;
     const d2=dx*dx+dy*dy;
-    if(d2<36){ // within 6px
+    if(d2<36){
       const diff=pt[a]-pt[b];
       pt[a]-=diff*CONDUCT_RATE;
       pt[b]+=diff*CONDUCT_RATE;
@@ -645,7 +504,6 @@ function stepOnce(dt){
   }
 }
 
-// ─── RENDERING ────────────────────────────────────────────────────────────────
 let heatmapCanvas = null;
 let heatmapCtx = null;
 const HMAP_W = 100, HMAP_H = 70;
@@ -680,7 +538,6 @@ function renderHeatmap(cw,ch){
     let r=10,g=14,b=26;
     if(t>=0){
       const idx=colorIdx(t);
-      // parse rgb from COLOR_LUT
       const col=COLOR_LUT[idx];
       const m=col.match(/\d+/g);
       r=+m[0]; g=+m[1]; b=+m[2];
@@ -702,29 +559,24 @@ function drawScene(cw, ch){
   ctx.translate(offX,offY);
   ctx.scale(sc,sc);
 
-  // Background room fills
   ctx.globalAlpha=0.25;
   const roomFills=[
-    // [x,y,w,h,color]
-    [0, G.basY1, G.houseX2, G.basY2-G.basY1,'#1e1b4b'],       // basement
-    [0, G.rdcY1, G.houseX2, G.rdcY2-G.rdcY1,'#1e293b'],       // RDC
-    [G.verX1,G.verY1,G.verX2-G.verX1,G.verY2-G.verY1,'#0d3f2b'], // veranda
-    [0, G.r1Y1, G.houseX2, G.r1Y2-G.r1Y1,'#1e293b'],          // R+1
-    [0, G.r2Y1, G.houseX2, G.r1Y1-G.r2Y1,'#172032'],          // attic
+    [0, G.basY1, G.houseX2, G.basY2-G.basY1,'#1e1b4b'],
+    [0, G.rdcY1, G.houseX2, G.rdcY2-G.rdcY1,'#1e293b'],
+    [G.verX1,G.verY1,G.verX2-G.verX1,G.verY2-G.verY1,'#0d3f2b'],
+    [0, G.r1Y1, G.houseX2, G.r1Y2-G.r1Y1,'#1e293b'],
+    [0, G.r2Y1, G.houseX2, G.r1Y1-G.r2Y1,'#172032'],
   ];
   for(const [x,y,w,h,col] of roomFills){
     ctx.fillStyle=col; ctx.fillRect(x,y,w,h);
   }
   ctx.globalAlpha=1;
 
-  // ── Heatmap overlay (particles rendered as diffuse heat) ──
   ctx.globalAlpha=0.45;
   renderHeatmap(SIM_W, SIM_H);
   ctx.globalAlpha=1;
 
-  // ── Draw particles ──
   ctx.save();
-  // Batch by color groups for fewer style changes
   const PR2 = PARTICLE_R*1.4;
   for(let i=0;i<N;i++){
     ctx.fillStyle=COLOR_LUT[colorIdx(pt[i])];
@@ -734,7 +586,6 @@ function drawScene(cw, ch){
   }
   ctx.restore();
 
-  // ── Draw walls ──
   for(const w of walls){
     ctx.beginPath();
     ctx.moveTo(w.x1,w.y1);
@@ -756,7 +607,6 @@ function drawScene(cw, ch){
     ctx.setLineDash([]);
   }
 
-  // ── Draw radiators ──
   for(const rad of radiators){
     ctx.fillStyle = state.heat ? 'rgba(255,120,30,0.85)' : 'rgba(80,80,100,0.5)';
     ctx.fillRect(rad.x,rad.y,rad.w,rad.h);
@@ -768,7 +618,6 @@ function drawScene(cw, ch){
     }
   }
 
-  // ── Labels ──
   ctx.font='bold 10px Segoe UI,sans-serif';
   ctx.fillStyle='rgba(200,210,230,0.7)';
   ctx.textAlign='center';
@@ -788,23 +637,20 @@ function drawScene(cw, ch){
     ctx.fillText(txt,x,y);
   }
 
-  // ── Season indicator ──
   ctx.font='12px Segoe UI';
   ctx.fillStyle=state.summer?'rgba(255,180,30,0.9)':'rgba(100,180,255,0.9)';
   ctx.fillText(state.summer?'☀ SUMMER':'❄ WINTER', SIM_W-55, 18);
 
-  // ── Opening indicators ──
   ctx.font='9px Segoe UI';
   ctx.fillStyle='rgba(100,255,150,0.85)';
-  if(state.cave)     ctx.fillText('⬛CAVE',12,G.basY1+15);
-  if(state.veranda)  ctx.fillText('⬛VER',G.verX1+5,G.verY2-5);
-  if(state.velux)    ctx.fillText('⬛VLX',140,G.r2Y1+12);
-  if(state.facade)   ctx.fillText('⬛WIN',G.houseX2-45,G.rdcY1+12);
+  if(state.cave)     ctx.fillText('CAVE OPEN',12,G.basY1+15);
+  if(state.veranda)  ctx.fillText('VER OPEN',G.verX1+5,G.verY2-5);
+  if(state.velux)    ctx.fillText('VLX OPEN',140,G.r2Y1+12);
+  if(state.facade)   ctx.fillText('WIN OPEN',G.houseX2-45,G.rdcY1+12);
 
   ctx.restore();
 }
 
-// ─── MAIN LOOP ────────────────────────────────────────────────────────────────
 let sumT=0, minT=1, maxT=0;
 
 function loop(ts){
@@ -812,7 +658,6 @@ function loop(ts){
   const dt=Math.min((ts-lastTime)/1000, 0.05);
   lastTime=ts;
 
-  // FPS
   fpsCount++;
   if(ts-fpsTime>500){
     fps=Math.round(fpsCount*1000/(ts-fpsTime));
@@ -822,7 +667,6 @@ function loop(ts){
 
   step(dt);
 
-  // Stats (sampled every frame but use running avg)
   sumT=0; minT=1; maxT=0;
   for(let i=0;i<N;i++){
     const t=pt[i];
@@ -837,7 +681,6 @@ function loop(ts){
     document.getElementById('s-n').textContent=N;
   }
 
-  // Draw
   const cw=canvas.width/(window.devicePixelRatio||1);
   const ch=canvas.height/(window.devicePixelRatio||1);
   ctx.save();
@@ -848,7 +691,6 @@ function loop(ts){
   drawScene(cw,ch);
 }
 
-// ─── CONTROLS ─────────────────────────────────────────────────────────────────
 function toggle(key){
   if(key==='heat'){
     state.heat=!state.heat;
@@ -884,7 +726,6 @@ function toggle(key){
   }
 }
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
 resize();
 spawnParticles();
 requestAnimationFrame(ts=>{lastTime=ts; requestAnimationFrame(loop);});
