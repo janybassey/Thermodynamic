@@ -23,8 +23,10 @@ canvas.fan-mode{cursor:crosshair}
 .legend-row{display:flex;align-items:center;gap:4px;margin-bottom:2px}
 .legend-swatch{width:10px;height:7px;border-radius:2px}
 #fps-counter{position:absolute;top:4px;right:40px;font-size:9px;color:#475569;pointer-events:none;z-index:5}
-#ctrl-bar{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#111827;border-top:1px solid #1f2d45;flex-shrink:0;gap:5px;z-index:30}
-#quick-btns{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+#ctrl-bar{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#111827;border-top:1px solid #1f2d45;flex-shrink:0;gap:5px;z-index:30;flex-wrap:wrap}
+#quick-btns{display:flex;gap:4px;flex-wrap:wrap;flex:1;align-items:center}
+.ext-ctrl{display:flex;align-items:center;gap:3px;font-size:10px;color:#94a3b8;white-space:nowrap}
+.ext-ctrl input[type=range]{width:58px;height:3px;accent-color:#f97316;cursor:pointer}
 #ctrl-toggle{background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation;flex-shrink:0}
 #ctrl-toggle.panel-open{background:#1d4ed8;color:#fff;border-color:#3b82f6}
 #controls-panel{background:#0f172a;border-top:1px solid #1f2d45;padding:6px 8px;flex-shrink:0;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;max-height:200px;overflow-y:auto}
@@ -46,6 +48,8 @@ button{border:none;border-radius:6px;padding:4px 9px;font-size:10px;font-weight:
 .acc-header:active{background:#273344}
 .acc-body{display:none;flex-direction:column;gap:3px;padding-top:3px}
 .acc-body.open{display:flex}
+.velux-row{display:flex;align-items:center;gap:4px;padding:2px 4px;font-size:9px;color:#fbbf24}
+.velux-row input[type=range]{flex:1;height:2px;accent-color:#fbbf24;cursor:pointer}
 .fan-row{display:flex;align-items:center;gap:6px;background:#1e293b;border-radius:5px;padding:4px 8px;font-size:10px;color:#94a3b8}
 .fan-row input[type=range]{flex:1;height:3px;accent-color:#60a5fa}
 .fan-row button{padding:2px 7px;min-height:20px;font-size:10px;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b}
@@ -84,6 +88,7 @@ button{border:none;border-radius:6px;padding:4px 9px;font-size:10px;font-weight:
       <button class="btn-toggle" id="btn-season" onclick="toggle('season')">&#x2744; Hiver</button>
       <button class="btn-toggle" id="btn-speed" onclick="toggle('speed')">1&times;</button>
       <button class="btn-toggle" id="btn-fan-mode" onclick="toggle('fanMode')">&#x1f4a8; Ventilo</button>
+      <label class="ext-ctrl">&#x1f321;<input id="ext-temp-slider" type="range" min="-10" max="45" step="1" value="-2" oninput="setExtTemp(+this.value)"><span id="ext-temp-val">-2&deg;C</span></label>
     </div>
     <button id="ctrl-toggle" onclick="toggleControls()">&#9776; Ouvrants</button>
   </div>
@@ -98,11 +103,11 @@ button{border:none;border-radius:6px;padding:4px 9px;font-size:10px;font-weight:
 <script>
 'use strict';
 
-// ─── STATE ────────────────────────────────────────────────────────────────────
-const state = { heat: true, summer: false, speed: false };
+const EXT = 200;
+
+const state = { heat: true, summer: false, speed: false, extCelsius: -2 };
 const vp = { zoom: 1, panX: 0, panY: 0, maxZoom: 4 };
 
-// ─── CANVAS ───────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('sim');
 const ctx = canvas.getContext('2d', { alpha: false });
 let scale = 1;
@@ -136,15 +141,13 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
-// ─── ZOOM BUTTONS ─────────────────────────────────────────────────────────────
 function zoomBtn(f) {
   const cw = canvas.clientWidth, ch = canvas.clientHeight;
   if (f === 0) { vp.zoom = 1; vp.panX = 0; vp.panY = 0; }
-  else vp.zoom = Math.max(1, Math.min(vp.maxZoom, vp.zoom * f));
+  else vp.zoom = Math.max(0.3, Math.min(vp.maxZoom, vp.zoom * f));
   clampPan(cw, ch);
 }
 
-// ─── TOUCH / MOUSE EVENTS ─────────────────────────────────────────────────────
 let touchSt = { mode: 'none', lx: 0, ly: 0, dist0: 0, z0: 1, px0: 0, py0: 0, smx: 0, smy: 0, scmx: 0, scmy: 0, moved: false };
 function td(t1, t2) { return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY); }
 
@@ -177,7 +180,7 @@ canvas.addEventListener('touchmove', e => {
     clampPan(cw, ch);
   } else if (touchSt.mode === 'pinch' && e.touches.length === 2) {
     const dist = td(e.touches[0], e.touches[1]);
-    vp.zoom = Math.max(1, Math.min(vp.maxZoom, touchSt.z0 * dist / touchSt.dist0));
+    vp.zoom = Math.max(0.3, Math.min(vp.maxZoom, touchSt.z0 * dist / touchSt.dist0));
     const nsc = scale * vp.zoom;
     vp.panX = ((cw / 2 - SIM_W * nsc / 2) + touchSt.smx * nsc - touchSt.scmx) / nsc;
     vp.panY = ((ch / 2 - SIM_H * nsc / 2) + touchSt.smy * nsc - touchSt.scmy) / nsc;
@@ -198,7 +201,7 @@ canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const cw = canvas.clientWidth, ch = canvas.clientHeight;
   const f = e.deltaY < 0 ? 1.12 : 0.89;
-  const newZ = Math.max(1, Math.min(vp.maxZoom, vp.zoom * f));
+  const newZ = Math.max(0.3, Math.min(vp.maxZoom, vp.zoom * f));
   const s = screenToSim(e.clientX, e.clientY, cw, ch);
   vp.zoom = newZ;
   const nsc = scale * newZ;
@@ -233,7 +236,6 @@ canvas.addEventListener('mouseup', e => {
   mouseDrag.active = false;
 });
 
-// ─── GEOMETRY CONSTANTS ────────────────────────────────────────────────────────
 const G = {
   basY1: 490, basY2: 700,
   rdcY1: 280, rdcY2: 490,
@@ -249,16 +251,13 @@ let openWallIds = new Set();
 const GRID_COLS = 50, GRID_ROWS = 35;
 let gridW, gridH, wallGrid = [];
 
-// ─── FAN SYSTEM ───────────────────────────────────────────────────────────────
 let fans = [], fanIdCtr = 0;
 let interactionMode = 'normal';
 let activeFanDrag = null;
 
-// ─── RIPPLES ──────────────────────────────────────────────────────────────────
 let ripples = [];
 function addRipple(x, y) { ripples.push({ x, y, r: 0, a: 0.85 }); }
 
-// ─── GEOMETRY BUILDERS ────────────────────────────────────────────────────────
 function addWall(x1, y1, x2, y2, type, openingId = null) {
   walls.push({ x1, y1, x2, y2, type, openingId });
 }
@@ -276,8 +275,8 @@ function addRadiator(x, y, w, h, zone) {
   radiators.push({ x, y, w, h, zone, cx: x + w / 2, cy: y + h / 2 });
 }
 
-function defineOpening(id, label, zone, type, wallSegs, draftZones, glassZones, sx, sy, init = false) {
-  const op = { id, label, zone, type, wallSegs, draftZones, glassZones, simX: sx, simY: sy, isOpen: init };
+function defineOpening(id, label, zone, type, wallSegs, draftZones, glassZones, sx, sy, init = false, extra = {}) {
+  const op = { id, label, zone, type, wallSegs, draftZones, glassZones, simX: sx, simY: sy, isOpen: init, ...extra };
   openings.push(op);
   for (const gz of glassZones) {
     heatZones.push({ x1: gz.x1, y1: gz.y1, x2: gz.x2, y2: gz.y2, type: 'glass', key: gz.key, openingId: id });
@@ -289,26 +288,22 @@ function rebuildOpenWallSet() {
   for (const op of openings) if (op.isOpen) openWallIds.add(op.id);
 }
 
-// ─── BUILD GEOMETRY ───────────────────────────────────────────────────────────
 function buildGeometry() {
+  const savedAngles = {};
+  for (const op of openings) if (op.veluxAngle !== undefined) savedAngles[op.id] = op.veluxAngle;
+
   walls = []; openings = []; radiators = []; heatZones = [];
   const { basY1, basY2, rdcY1, rdcY2, r1Y1, r1Y2, r2Y1, houseX2, verX1, verX2, verY1, verY2 } = G;
   const DF = DRAFT_FORCE;
 
-  // ── BASEMENT OUTER WALLS ─────────────────────────────────────────────────
-  // SW (x=0): cave SW door y=basY1+30..+90
   addWall(0, basY1, 0, basY1 + 30, 'wall');
   addWall(0, basY1 + 30, 0, basY1 + 90, 'wall', 'cave_sw');
   addWall(0, basY1 + 90, 0, basY2, 'wall');
-  // NE (x=700): cave NE door
   addWall(houseX2, basY1, houseX2, basY1 + 30, 'wall');
   addWall(houseX2, basY1 + 30, houseX2, basY1 + 90, 'wall', 'cave_ne');
   addWall(houseX2, basY1 + 90, houseX2, basY2, 'wall');
-  // Floor (ground)
   addWall(0, basY2, houseX2, basY2, 'ground');
 
-  // ── RDC OUTER WALLS ───────────────────────────────────────────────────────
-  // SW (x=0): toilet window (small high), kitchen window, entry door (low)
   addWall(0, rdcY1, 0, rdcY1 + 35, 'wall');
   addWall(0, rdcY1 + 35, 0, rdcY1 + 75, 'glass', 'toilet_win');
   addWall(0, rdcY1 + 75, 0, rdcY1 + 120, 'wall');
@@ -316,19 +311,15 @@ function buildGeometry() {
   addWall(0, rdcY1 + 170, 0, rdcY2 - 75, 'wall');
   addWall(0, rdcY2 - 75, 0, rdcY2 - 8, 'wall', 'entry_door');
   addWall(0, rdcY2 - 8, 0, rdcY2, 'wall');
-  // NE (x=700): salon window
   addWall(houseX2, rdcY1, houseX2, rdcY1 + 28, 'wall');
   addWall(houseX2, rdcY1 + 28, houseX2, rdcY1 + 78, 'glass', 'salon_win');
   addWall(houseX2, rdcY1 + 78, houseX2, rdcY2, 'wall');
 
-  // ── R+1 OUTER WALLS ───────────────────────────────────────────────────────
-  // SW (x=0): 2 baby room windows
   addWall(0, r1Y1, 0, r1Y1 + 25, 'wall');
   addWall(0, r1Y1 + 25, 0, r1Y1 + 72, 'glass', 'baby_win_l');
   addWall(0, r1Y1 + 72, 0, r1Y1 + 105, 'wall');
   addWall(0, r1Y1 + 105, 0, r1Y1 + 152, 'glass', 'baby_win_r');
   addWall(0, r1Y1 + 152, 0, r1Y2, 'wall');
-  // NE (x=700): bathroom window + 2 parent room windows
   addWall(houseX2, r1Y1, houseX2, r1Y1 + 28, 'wall');
   addWall(houseX2, r1Y1 + 28, houseX2, r1Y1 + 68, 'glass', 'bath_win');
   addWall(houseX2, r1Y1 + 68, houseX2, r1Y1 + 90, 'wall');
@@ -337,72 +328,51 @@ function buildGeometry() {
   addWall(houseX2, r1Y1 + 158, houseX2, r1Y2 - 12, 'glass', 'parent_win_r');
   addWall(houseX2, r1Y2 - 12, houseX2, r1Y2, 'wall');
 
-  // ── ATTIC MANSARD SLOPES (with velux gaps) ────────────────────────────────
-  // Left slope (0,100)→(180,0): velux at t=0.38..0.68 → (68,62)→(122,32)
   addWall(0, r1Y1, 68, 62, 'wall');
   addWall(68, 62, 122, 32, 'glass', 'velux_left');
   addWall(122, 32, 180, r2Y1, 'wall');
-  addWall(180, r2Y1, 520, r2Y1, 'wall'); // flat ridge
-  // Right slope (520,0)→(700,100): velux at t=0.32..0.62 → (578,32)→(632,62)
+  addWall(180, r2Y1, 520, r2Y1, 'wall');
   addWall(520, r2Y1, 578, 32, 'wall');
   addWall(578, 32, 632, 62, 'glass', 'velux_right');
   addWall(632, 62, houseX2, r1Y1, 'wall');
 
-  // ── HORIZONTAL FLOORS/CEILINGS ────────────────────────────────────────────
-  // RDC/BAS: staircase gap x=400-480
   addWallSeg(0, rdcY2, houseX2, rdcY2, 'wall', [[400, 480]]);
-  // RDC ceiling / R1 floor: staircase up x=350-430
   addWallSeg(0, rdcY1, houseX2, rdcY1, 'wall', [[350, 430]]);
-  // R1 ceiling / R2 floor: staircase up x=300-380
   addWallSeg(0, r1Y1, houseX2, r1Y1, 'wall', [[300, 380]]);
 
-  // ── VERANDA ───────────────────────────────────────────────────────────────
-  // Sloped glass roof with velux_veranda in middle section
   addWall(verX1, verY1, verX1 + 120, verY1 + 26, 'glass');
   addWall(verX1 + 120, verY1 + 26, verX1 + 180, verY1 + 39, 'glass', 'veranda_velux');
   addWall(verX1 + 180, verY1 + 39, verX2, verY1 + 65, 'glass');
-  // NE glass wall: veranda bay opening
   addWall(verX2, verY1 + 65, verX2, verY1 + 75, 'glass');
   addWall(verX2, verY1 + 75, verX2, verY2 - 18, 'glass', 'veranda_bay');
   addWall(verX2, verY2 - 18, verX2, verY2, 'glass');
-  // Veranda floor + left wall
   addWall(verX1, verY2, verX2, verY2, 'wall');
-  // Salon/Veranda dividing wall at x=700
   addWall(verX1, rdcY1, verX1, rdcY1 + 22, 'wall');
   addWall(verX1, rdcY1 + 22, verX1, rdcY1 + 62, 'glass', 'veranda_win');
   addWall(verX1, rdcY1 + 62, verX1, rdcY1 + 73, 'wall');
   addWall(verX1, rdcY1 + 73, verX1, rdcY1 + 163, 'wall', 'veranda_door');
   addWall(verX1, rdcY1 + 163, verX1, verY2, 'wall');
 
-  // ── INTERNAL PARTITIONS ───────────────────────────────────────────────────
-  // RDC: Hallway/Kitchen x=200 with toggleable door
   addWall(200, rdcY1, 200, rdcY1 + 58, 'wall');
   addWall(200, rdcY1 + 58, 200, rdcY1 + 118, 'wall', 'hall_kitchen_door');
   addWall(200, rdcY1 + 118, 200, rdcY2, 'wall');
-  // RDC: Kitchen/Salon half-wall + verriere (KEPT AS-IS per user request)
   addWall(400, rdcY1 + 100, 400, rdcY2, 'wall');
   addWall(400, rdcY1 + 20, 400, rdcY1 + 100, 'glass');
-  // RDC: Toilets
   addWall(100, rdcY1 + 80, 200, rdcY1 + 80, 'wall');
   addWall(100, rdcY1 + 80, 100, rdcY2, 'wall');
-  // R+1: Baby room x=230
   addWall(230, r1Y1, 230, r1Y1 + 48, 'wall');
   addWall(230, r1Y1 + 48, 230, r1Y1 + 108, 'wall', 'baby_door');
   addWall(230, r1Y1 + 108, 230, r1Y2, 'wall');
-  // R+1: Bathroom x=480
   addWall(480, r1Y1, 480, r1Y1 + 48, 'wall');
   addWall(480, r1Y1 + 48, 480, r1Y1 + 108, 'wall', 'bath_door');
   addWall(480, r1Y1 + 108, 480, r1Y2, 'wall');
-  // Basement: SAS x=200
   addWall(200, basY1, 200, basY1 + 28, 'wall');
   addWall(200, basY1 + 28, 200, basY1 + 88, 'wall', 'sas_door');
   addWall(200, basY1 + 88, 200, basY2, 'wall');
-  // Basement: Atelier x=500
   addWall(500, basY1, 500, basY1 + 28, 'wall');
   addWall(500, basY1 + 28, 500, basY1 + 88, 'wall', 'atelier_door');
   addWall(500, basY1 + 88, 500, basY2, 'wall');
 
-  // ── RADIATORS ─────────────────────────────────────────────────────────────
   addRadiator(30, rdcY2 - 20, 60, 12, 'rdc');
   addRadiator(270, rdcY2 - 20, 60, 12, 'rdc');
   addRadiator(550, rdcY2 - 20, 60, 12, 'rdc');
@@ -413,26 +383,20 @@ function buildGeometry() {
   addRadiator(100, r2Y1 + 18, 55, 12, 'r2');
   addRadiator(540, r2Y1 + 18, 55, 12, 'r2');
 
-  // ── ALWAYS-ON HEAT ZONES ──────────────────────────────────────────────────
-  // Basement ground
   heatZones.push({ x1: 0, y1: basY2 - 18, x2: houseX2, y2: basY2, temp: 0.22, cond: 0.008, type: 'ground' });
-  // Veranda glass roof (always season-dependent, no openingId)
   heatZones.push({ x1: verX1 + 2, y1: verY1, x2: verX2 - 2, y2: verY1 + 68, type: 'glass', key: 'veranda_glass', openingId: null });
   heatZones.push({ x1: verX2 - 8, y1: verY1 + 68, x2: verX2, y2: verY2 - 8, type: 'glass', key: 'veranda_glass', openingId: null });
 
-  // ── OPENING REGISTRY ──────────────────────────────────────────────────────
-  // Basement doors (exterior)
   defineOpening('cave_sw', 'Cave SW', 'basement', 'door',
     [{ x1: 0, y1: basY1 + 30, x2: 0, y2: basY1 + 90 }],
-    [{ x1: 0, y1: basY1 + 30, x2: 45, y2: basY1 + 90, fx: DF * 0.3, fy: 0 }],
+    [{ x1: -30, y1: basY1 + 30, x2: 45, y2: basY1 + 90, fx: DF * 0.3, fy: 0 }],
     [{ x1: 0, y1: basY1 + 30, x2: 12, y2: basY1 + 90, key: 'ext_door' }], 0, basY1 + 60);
 
   defineOpening('cave_ne', 'Cave NE', 'basement', 'door',
     [{ x1: houseX2, y1: basY1 + 30, x2: houseX2, y2: basY1 + 90 }],
-    [{ x1: houseX2 - 45, y1: basY1 + 30, x2: houseX2, y2: basY1 + 90, fx: DF * 0.15, fy: 0 }],
+    [{ x1: houseX2 - 45, y1: basY1 + 30, x2: houseX2 + 30, y2: basY1 + 90, fx: -DF * 0.15, fy: 0 }],
     [{ x1: houseX2 - 12, y1: basY1 + 30, x2: houseX2, y2: basY1 + 90, key: 'ext_door' }], houseX2, basY1 + 60);
 
-  // Basement interior doors (start open)
   defineOpening('sas_door', 'Porte SAS', 'basement', 'door',
     [{ x1: 200, y1: basY1 + 28, x2: 200, y2: basY1 + 88 }],
     [], [], 200, basY1 + 58, true);
@@ -441,81 +405,77 @@ function buildGeometry() {
     [{ x1: 500, y1: basY1 + 28, x2: 500, y2: basY1 + 88 }],
     [], [], 500, basY1 + 58, true);
 
-  // RDC exterior
-  defineOpening('entry_door', 'Entrée RDC', 'rdc', 'door',
+  defineOpening('entry_door', 'Entree RDC', 'rdc', 'door',
     [{ x1: 0, y1: rdcY2 - 75, x2: 0, y2: rdcY2 - 8 }],
-    [{ x1: 0, y1: rdcY2 - 75, x2: 50, y2: rdcY2 - 8, fx: DF * 0.2, fy: 0 }],
+    [{ x1: -40, y1: rdcY2 - 75, x2: 50, y2: rdcY2 - 8, fx: DF * 0.2, fy: 0 }],
     [{ x1: 0, y1: rdcY2 - 75, x2: 10, y2: rdcY2 - 8, key: 'ext_door' }], 0, rdcY2 - 40);
 
-  defineOpening('toilet_win', 'Fenêtre WC', 'rdc', 'window',
+  defineOpening('toilet_win', 'Fenetre WC', 'rdc', 'window',
     [{ x1: 0, y1: rdcY1 + 35, x2: 0, y2: rdcY1 + 75 }],
-    [{ x1: 0, y1: rdcY1 + 35, x2: 30, y2: rdcY1 + 75, fx: DF * 0.1, fy: 0 }],
+    [{ x1: -20, y1: rdcY1 + 35, x2: 30, y2: rdcY1 + 75, fx: DF * 0.1, fy: 0 }],
     [{ x1: 0, y1: rdcY1 + 35, x2: 8, y2: rdcY1 + 75, key: 'ext_win' }], 0, rdcY1 + 55);
 
-  defineOpening('kitchen_win', 'Fenêtre Cuisine', 'rdc', 'window',
+  defineOpening('kitchen_win', 'Fenetre Cuisine', 'rdc', 'window',
     [{ x1: 0, y1: rdcY1 + 120, x2: 0, y2: rdcY1 + 170 }],
-    [{ x1: 0, y1: rdcY1 + 120, x2: 40, y2: rdcY1 + 170, fx: DF * 0.18, fy: 0 }],
+    [{ x1: -30, y1: rdcY1 + 120, x2: 40, y2: rdcY1 + 170, fx: DF * 0.18, fy: 0 }],
     [{ x1: 0, y1: rdcY1 + 120, x2: 8, y2: rdcY1 + 170, key: 'ext_win' }], 0, rdcY1 + 145);
 
-  defineOpening('salon_win', 'Fenêtre Salon', 'rdc', 'window',
+  defineOpening('salon_win', 'Fenetre Salon', 'rdc', 'window',
     [{ x1: houseX2, y1: rdcY1 + 28, x2: houseX2, y2: rdcY1 + 78 }],
-    [{ x1: houseX2 - 40, y1: rdcY1 + 28, x2: houseX2, y2: rdcY1 + 78, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 40, y1: rdcY1 + 28, x2: houseX2 + 30, y2: rdcY1 + 78, fx: -DF * 0.18, fy: 0 }],
     [{ x1: houseX2 - 8, y1: rdcY1 + 28, x2: houseX2, y2: rdcY1 + 78, key: 'ext_win' }], houseX2, rdcY1 + 53);
 
-  defineOpening('veranda_win', 'Vitre Salon/Véranda', 'rdc', 'window',
+  defineOpening('veranda_win', 'Vitre Salon/Veranda', 'rdc', 'window',
     [{ x1: verX1, y1: rdcY1 + 22, x2: verX1, y2: rdcY1 + 62 }],
     [{ x1: verX1 - 30, y1: rdcY1 + 22, x2: verX1 + 30, y2: rdcY1 + 62, fx: DF * 0.1, fy: 0 }],
     [{ x1: verX1 - 4, y1: rdcY1 + 22, x2: verX1 + 4, y2: rdcY1 + 62, key: 'veranda_open' }], verX1, rdcY1 + 42);
 
-  defineOpening('veranda_door', 'Porte Française', 'rdc', 'door',
+  defineOpening('veranda_door', 'Porte Francaise', 'rdc', 'door',
     [{ x1: verX1, y1: rdcY1 + 73, x2: verX1, y2: rdcY1 + 163 }],
     [{ x1: verX1 - 40, y1: rdcY1 + 73, x2: verX1 + 40, y2: rdcY1 + 163, fx: DF * 0.22 * (state.summer ? 1 : -0.3), fy: 0 }],
     [{ x1: verX1 - 4, y1: rdcY1 + 73, x2: verX1 + 4, y2: rdcY1 + 163, key: 'veranda_open' }], verX1, rdcY1 + 118);
 
-  // RDC interior door (start open)
   defineOpening('hall_kitchen_door', 'Porte Hall/Cuisine', 'rdc', 'door',
     [{ x1: 200, y1: rdcY1 + 58, x2: 200, y2: rdcY1 + 118 }],
     [], [], 200, rdcY1 + 88, true);
 
-  // Veranda
-  defineOpening('veranda_bay', 'Baie Véranda NE', 'veranda', 'baywindow',
+  defineOpening('veranda_bay', 'Baie Veranda NE', 'veranda', 'baywindow',
     [{ x1: verX2, y1: verY1 + 75, x2: verX2, y2: verY2 - 18 }],
-    [{ x1: verX2 - 50, y1: verY1 + 75, x2: verX2, y2: verY2 - 18, fx: DF * 0.2 * (state.summer ? 1 : -0.2), fy: 0 }],
+    [{ x1: verX2 - 50, y1: verY1 + 75, x2: verX2 + 40, y2: verY2 - 18, fx: -DF * 0.2, fy: 0 }],
     [{ x1: verX2 - 8, y1: verY1 + 75, x2: verX2, y2: verY2 - 18, key: 'ext_win' }], verX2, (verY1 + verY2) / 2);
 
-  defineOpening('veranda_velux', 'Velux Véranda', 'veranda', 'velux',
+  defineOpening('veranda_velux', 'Velux Veranda', 'veranda', 'velux',
     [{ x1: verX1 + 120, y1: verY1 + 26, x2: verX1 + 180, y2: verY1 + 39 }],
-    [{ x1: verX1 + 80, y1: verY1, x2: verX1 + 220, y2: verY1 + 60, fx: 0, fy: -DF * 0.3 }],
-    [{ x1: verX1 + 120, y1: verY1 + 20, x2: verX1 + 180, y2: verY1 + 45, key: 'velux' }], verX1 + 150, verY1 + 32);
+    [{ x1: verX1 + 80, y1: verY1, x2: verX1 + 220, y2: verY1 + 60, f: 0.3 }],
+    [{ x1: verX1 + 120, y1: verY1 + 20, x2: verX1 + 180, y2: verY1 + 45, key: 'velux' }],
+    verX1 + 150, verY1 + 32, false, { veluxAngle: -Math.PI / 2 });
 
-  // R+1 windows
-  defineOpening('baby_win_l', 'Bébé Fenêtre G', 'r1', 'window',
+  defineOpening('baby_win_l', 'Bebe Fenetre G', 'r1', 'window',
     [{ x1: 0, y1: r1Y1 + 25, x2: 0, y2: r1Y1 + 72 }],
-    [{ x1: 0, y1: r1Y1 + 25, x2: 35, y2: r1Y1 + 72, fx: DF * 0.18, fy: 0 }],
+    [{ x1: -25, y1: r1Y1 + 25, x2: 35, y2: r1Y1 + 72, fx: DF * 0.18, fy: 0 }],
     [{ x1: 0, y1: r1Y1 + 25, x2: 8, y2: r1Y1 + 72, key: 'ext_win' }], 0, r1Y1 + 48);
 
-  defineOpening('baby_win_r', 'Bébé Fenêtre D', 'r1', 'window',
+  defineOpening('baby_win_r', 'Bebe Fenetre D', 'r1', 'window',
     [{ x1: 0, y1: r1Y1 + 105, x2: 0, y2: r1Y1 + 152 }],
-    [{ x1: 0, y1: r1Y1 + 105, x2: 35, y2: r1Y1 + 152, fx: DF * 0.18, fy: 0 }],
+    [{ x1: -25, y1: r1Y1 + 105, x2: 35, y2: r1Y1 + 152, fx: DF * 0.18, fy: 0 }],
     [{ x1: 0, y1: r1Y1 + 105, x2: 8, y2: r1Y1 + 152, key: 'ext_win' }], 0, r1Y1 + 128);
 
-  defineOpening('bath_win', 'SdB Fenêtre', 'r1', 'window',
+  defineOpening('bath_win', 'SdB Fenetre', 'r1', 'window',
     [{ x1: houseX2, y1: r1Y1 + 28, x2: houseX2, y2: r1Y1 + 68 }],
-    [{ x1: houseX2 - 35, y1: r1Y1 + 28, x2: houseX2, y2: r1Y1 + 68, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 35, y1: r1Y1 + 28, x2: houseX2 + 25, y2: r1Y1 + 68, fx: -DF * 0.18, fy: 0 }],
     [{ x1: houseX2 - 8, y1: r1Y1 + 28, x2: houseX2, y2: r1Y1 + 68, key: 'ext_win' }], houseX2, r1Y1 + 48);
 
-  defineOpening('parent_win_l', 'Parents Fenêtre G', 'r1', 'window',
+  defineOpening('parent_win_l', 'Parents Fenetre G', 'r1', 'window',
     [{ x1: houseX2, y1: r1Y1 + 90, x2: houseX2, y2: r1Y1 + 135 }],
-    [{ x1: houseX2 - 35, y1: r1Y1 + 90, x2: houseX2, y2: r1Y1 + 135, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 35, y1: r1Y1 + 90, x2: houseX2 + 25, y2: r1Y1 + 135, fx: -DF * 0.18, fy: 0 }],
     [{ x1: houseX2 - 8, y1: r1Y1 + 90, x2: houseX2, y2: r1Y1 + 135, key: 'ext_win' }], houseX2, r1Y1 + 112);
 
-  defineOpening('parent_win_r', 'Parents Fenêtre D', 'r1', 'window',
+  defineOpening('parent_win_r', 'Parents Fenetre D', 'r1', 'window',
     [{ x1: houseX2, y1: r1Y1 + 158, x2: houseX2, y2: r1Y2 - 12 }],
-    [{ x1: houseX2 - 35, y1: r1Y1 + 158, x2: houseX2, y2: r1Y2 - 12, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 35, y1: r1Y1 + 158, x2: houseX2 + 25, y2: r1Y2 - 12, fx: -DF * 0.18, fy: 0 }],
     [{ x1: houseX2 - 8, y1: r1Y1 + 158, x2: houseX2, y2: r1Y2 - 12, key: 'ext_win' }], houseX2, r1Y1 + 178);
 
-  // R+1 interior doors (start open)
-  defineOpening('baby_door', 'Porte Bébé', 'r1', 'door',
+  defineOpening('baby_door', 'Porte Bebe', 'r1', 'door',
     [{ x1: 230, y1: r1Y1 + 48, x2: 230, y2: r1Y1 + 108 }],
     [], [], 230, r1Y1 + 78, true);
 
@@ -523,28 +483,28 @@ function buildGeometry() {
     [{ x1: 480, y1: r1Y1 + 48, x2: 480, y2: r1Y1 + 108 }],
     [], [], 480, r1Y1 + 78, true);
 
-  // R+2 velux
   defineOpening('velux_left', 'Velux R+2 G', 'r2', 'velux',
     [{ x1: 68, y1: 62, x2: 122, y2: 32 }],
-    [{ x1: 60, y1: 20, x2: 130, y2: 80, fx: 0, fy: -DF * 0.35 }],
-    [{ x1: 60, y1: 25, x2: 130, y2: 70, key: 'velux' }], 95, 47);
+    [{ x1: 60, y1: 20, x2: 130, y2: 80, f: 0.35 }],
+    [{ x1: 60, y1: 25, x2: 130, y2: 70, key: 'velux' }], 95, 47, false, { veluxAngle: -Math.PI / 2 });
 
   defineOpening('velux_right', 'Velux R+2 D', 'r2', 'velux',
     [{ x1: 578, y1: 32, x2: 632, y2: 62 }],
-    [{ x1: 560, y1: 20, x2: 640, y2: 80, fx: 0, fy: -DF * 0.35 }],
-    [{ x1: 560, y1: 25, x2: 640, y2: 70, key: 'velux' }], 605, 47);
+    [{ x1: 560, y1: 20, x2: 640, y2: 80, f: 0.35 }],
+    [{ x1: 560, y1: 25, x2: 640, y2: 70, key: 'velux' }], 605, 47, false, { veluxAngle: -Math.PI / 2 });
 
   defineOpening('velux_landing', 'Velux Palier R+2', 'r2', 'velux',
     [],
-    [{ x1: 280, y1: 0, x2: 370, y2: 40, fx: 0, fy: -DF * 0.25 }],
-    [{ x1: 280, y1: 0, x2: 370, y2: 12, key: 'velux' }], 325, 5);
+    [{ x1: 280, y1: 0, x2: 370, y2: 40, f: 0.25 }],
+    [{ x1: 280, y1: 0, x2: 370, y2: 12, key: 'velux' }], 325, 5, false, { veluxAngle: -Math.PI / 2 });
+
+  for (const op of openings) if (savedAngles[op.id] !== undefined) op.veluxAngle = savedAngles[op.id];
 
   buildWallGrid();
   rebuildOpenWallSet();
   buildOpeningsUI();
 }
 
-// ─── WALL GRID ─────────────────────────────────────────────────────────────────
 function buildWallGrid() {
   gridW = SIM_W / GRID_COLS; gridH = SIM_H / GRID_ROWS;
   wallGrid = Array.from({ length: GRID_COLS * GRID_ROWS }, () => []);
@@ -563,19 +523,20 @@ function getWallsNear(x, y) {
   return wallGrid[r * GRID_COLS + c];
 }
 
-// ─── PARTICLE SYSTEM ──────────────────────────────────────────────────────────
-const MAX_P = 1600;
+const MAX_P = 2200;
 const px = new Float32Array(MAX_P), py = new Float32Array(MAX_P);
 const pvx = new Float32Array(MAX_P), pvy = new Float32Array(MAX_P);
 const pt = new Float32Array(MAX_P);
+const pext = new Uint8Array(MAX_P);
 let N = 0;
 
-const PARTICLE_R = 3.0, DRAG = 0.97, THERMAL_NOISE = 0.25;
-const BUOY_FORCE = 0.04, HEAT_RADIUS = 30, HEAT_RATE = 0.012;
+const PARTICLE_R = 3.0, DRAG = 0.975, THERMAL_NOISE = 0.30;
+const BUOY_FORCE = 0.022, HEAT_RADIUS = 30, HEAT_RATE = 0.012;
 const CONDUCT_RATE = 0.0008, DRAFT_FORCE = 0.6;
 
 function spawnParticles() {
   N = 0;
+  pext.fill(0);
   const { basY1, basY2, rdcY1, rdcY2, r1Y1, r1Y2, r2Y1, houseX2, verX1, verX2, verY1, verY2 } = G;
   const regions = [
     [5, basY1 + 5, 195, basY2 - 5, 110, 0.22], [205, basY1 + 5, 495, basY2 - 5, 140, 0.22],
@@ -595,9 +556,64 @@ function spawnParticles() {
       N++;
     }
   }
+  spawnExtParticles();
 }
 
-// ─── COLLISION ─────────────────────────────────────────────────────────────────
+function spawnExtParticles() {
+  const { rdcY2, basY2, verX2 } = G;
+  const extT = fromCelsius(state.extCelsius);
+  for (let i = 0; i < 120 && N < MAX_P; i++) {
+    px[N] = -(EXT * 0.1 + Math.random() * EXT * 0.85);
+    py[N] = -EXT * 0.5 + Math.random() * (rdcY2 + EXT * 0.5);
+    pvx[N] = (Math.random() - .5) * 0.3; pvy[N] = (Math.random() - .5) * 0.3;
+    pt[N] = Math.max(0, Math.min(1, extT + (Math.random() - .5) * 0.02));
+    pext[N] = 1; N++;
+  }
+  for (let i = 0; i < 140 && N < MAX_P; i++) {
+    px[N] = -EXT + Math.random() * (verX2 + 2 * EXT);
+    py[N] = -(EXT * 0.1 + Math.random() * EXT * 0.85);
+    pvx[N] = (Math.random() - .5) * 0.3; pvy[N] = (Math.random() - .5) * 0.3;
+    pt[N] = Math.max(0, Math.min(1, extT - 0.02 + (Math.random() - .5) * 0.02));
+    pext[N] = 1; N++;
+  }
+  for (let i = 0; i < 80 && N < MAX_P; i++) {
+    px[N] = verX2 + EXT * 0.1 + Math.random() * EXT * 0.85;
+    py[N] = -EXT * 0.3 + Math.random() * (rdcY2 + EXT * 0.3);
+    pvx[N] = (Math.random() - .5) * 0.3; pvy[N] = (Math.random() - .5) * 0.3;
+    pt[N] = Math.max(0, Math.min(1, extT + (Math.random() - .5) * 0.02));
+    pext[N] = 1; N++;
+  }
+  for (let i = 0; i < 60 && N < MAX_P; i++) {
+    px[N] = -(EXT * 0.1 + Math.random() * EXT * 0.8);
+    py[N] = rdcY2 + Math.random() * (basY2 - rdcY2);
+    pvx[N] = (Math.random() - .5) * 0.2; pvy[N] = (Math.random() - .5) * 0.2;
+    pt[N] = Math.max(0, Math.min(1, extT - 0.04 + (Math.random() - .5) * 0.02));
+    pext[N] = 1; N++;
+  }
+}
+
+function respawnExtParticle(i) {
+  const { rdcY2, basY2, verX2 } = G;
+  const extT = fromCelsius(state.extCelsius);
+  const zone = Math.random();
+  if (zone < 0.35) {
+    px[i] = -(EXT * 0.1 + Math.random() * EXT * 0.85);
+    py[i] = -EXT * 0.4 + Math.random() * (rdcY2 + EXT * 0.4);
+  } else if (zone < 0.6) {
+    px[i] = -EXT + Math.random() * (verX2 + 2 * EXT);
+    py[i] = -(EXT * 0.1 + Math.random() * EXT * 0.85);
+  } else if (zone < 0.82) {
+    px[i] = verX2 + EXT * 0.1 + Math.random() * EXT * 0.85;
+    py[i] = -EXT * 0.2 + Math.random() * (rdcY2 + EXT * 0.2);
+  } else {
+    px[i] = -(EXT * 0.1 + Math.random() * EXT * 0.8);
+    py[i] = rdcY2 + Math.random() * (basY2 - rdcY2);
+  }
+  pvx[i] = (Math.random() - .5) * 0.3; pvy[i] = (Math.random() - .5) * 0.3;
+  pt[i] = Math.max(0, Math.min(1, extT + (Math.random() - .5) * 0.02));
+  pext[i] = 1;
+}
+
 function segDistSq(qx, qy, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
   if (l2 === 0) return (qx - ax) ** 2 + (qy - ay) ** 2;
@@ -615,7 +631,6 @@ function reflectOffWall(i, wx1, wy1, wx2, wy2) {
   if (dist < PARTICLE_R && dist > .001) { px[i] += ddx * (PARTICLE_R - dist) / dist; py[i] += ddy * (PARTICLE_R - dist) / dist; }
 }
 
-// ─── TEMPERATURE ───────────────────────────────────────────────────────────────
 function toCelsius(t) { return t * 50; }
 function fromCelsius(c) { return c / 50; }
 function tempColor(t) {
@@ -627,13 +642,19 @@ function tempColor(t) {
 const COLOR_LUT = Array.from({ length: 256 }, (_, i) => tempColor(i / 255));
 function colorIdx(t) { return Math.round(Math.max(0, Math.min(1, t)) * 255); }
 
-// ─── PHYSICS ───────────────────────────────────────────────────────────────────
 function getDraftForce(x, y) {
   let fx = 0, fy = 0;
   for (const op of openings) {
     if (!op.isOpen) continue;
     for (const dz of op.draftZones) {
-      if (x >= dz.x1 && x <= dz.x2 && y >= dz.y1 && y <= dz.y2) { fx += dz.fx; fy += dz.fy; }
+      if (x >= dz.x1 && x <= dz.x2 && y >= dz.y1 && y <= dz.y2) {
+        if (op.type === 'velux' && op.veluxAngle !== undefined && dz.f !== undefined) {
+          fx += Math.cos(op.veluxAngle) * dz.f * DRAFT_FORCE;
+          fy += Math.sin(op.veluxAngle) * dz.f * DRAFT_FORCE;
+        } else {
+          fx += dz.fx || 0; fy += dz.fy || 0;
+        }
+      }
     }
   }
   for (const fan of fans) {
@@ -652,15 +673,17 @@ function applyHeatZone(i, hz) {
   if (px[i] < hz.x1 - 2 || px[i] > hz.x2 + 2 || py[i] < hz.y1 - 2 || py[i] > hz.y2 + 2) return;
   if (hz.type === 'ground') { pt[i] += (hz.temp - pt[i]) * hz.cond; return; }
   if (hz.type !== 'glass') return;
-  const S = state.summer, isOpen = hz.openingId ? openWallIds.has(hz.openingId) : false;
+  const S = state.summer, EC = state.extCelsius;
+  const isOpen = hz.openingId ? openWallIds.has(hz.openingId) : false;
   let target, rate;
   switch (hz.key) {
-    case 'ext_win':   target = S ? fromCelsius(28) : fromCelsius(2); rate = isOpen ? 0.022 : 0.005; break;
-    case 'ext_door':  target = S ? fromCelsius(25) : fromCelsius(0); rate = isOpen ? 0.028 : 0.003; break;
-    case 'velux':     target = S ? fromCelsius(38) : fromCelsius(3); rate = isOpen ? 0.018 : 0.004; break;
-    case 'veranda_open': target = S ? fromCelsius(32) : fromCelsius(6); rate = isOpen ? 0.020 : 0.006; break;
-    case 'veranda_glass': target = S ? 0.85 : fromCelsius(2); rate = S ? 0.008 : 0.007; break;
-    default: target = S ? fromCelsius(28) : fromCelsius(2); rate = 0.004;
+    case 'ext_win':       target = fromCelsius(EC);          rate = isOpen ? 0.025 : 0.005; break;
+    case 'ext_door':      target = fromCelsius(EC);          rate = isOpen ? 0.032 : 0.003; break;
+    case 'velux':         target = fromCelsius(EC + (S ? 3 : -2)); rate = isOpen ? 0.022 : 0.004; break;
+    case 'veranda_open':  target = fromCelsius(EC + 2);      rate = isOpen ? 0.020 : 0.006; break;
+    case 'veranda_glass': target = S ? fromCelsius(EC + 5) : fromCelsius(Math.max(0, EC - 5));
+                          rate = S ? 0.010 : 0.007; break;
+    default:              target = fromCelsius(EC);          rate = 0.004;
   }
   pt[i] += (target - pt[i]) * rate;
 }
@@ -668,54 +691,81 @@ function applyHeatZone(i, hz) {
 function step(dt) { const n = state.speed ? 3 : 1; for (let s = 0; s < n; s++) stepOnce(dt); }
 
 function stepOnce(dt) {
-  const extT = state.summer ? fromCelsius(28) : fromCelsius(-2);
+  const extT = fromCelsius(state.extCelsius);
   const radT = state.heat ? 0.92 : 0.0;
+  const { basY2, rdcY2, houseX2, verX1, verX2, verY1, verY2 } = G;
+  const RECYCLE_D = 360;
+  const cx0 = SIM_W / 2, cy0 = SIM_H / 2;
+
   for (let i = 0; i < N; i++) {
+    const isExt = pext[i] === 1;
+
     pvy[i] -= (pt[i] - 0.5) * BUOY_FORCE;
     pvx[i] += (Math.random() - .5) * THERMAL_NOISE; pvy[i] += (Math.random() - .5) * THERMAL_NOISE;
+
     const d = getDraftForce(px[i], py[i]);
     pvx[i] += d.fx * dt; pvy[i] += d.fy * dt;
+
     pvx[i] *= DRAG; pvy[i] *= DRAG;
     px[i] += pvx[i]; py[i] += pvy[i];
-    // Bounds
-    const inV = px[i] > G.verX1 && px[i] < G.verX2 && py[i] > G.verY1 && py[i] < G.verY2;
-    if (!inV) {
-      if (px[i] < PARTICLE_R) { px[i] = PARTICLE_R; pvx[i] = Math.abs(pvx[i]) * .5; }
-      if (px[i] > G.houseX2 - PARTICLE_R) { px[i] = G.houseX2 - PARTICLE_R; pvx[i] = -Math.abs(pvx[i]) * .5; }
+
+    if (isExt) {
+      if (py[i] > basY2 - PARTICLE_R) { py[i] = basY2 - PARTICLE_R; pvy[i] = -Math.abs(pvy[i]) * .4; }
+      if (py[i] < -EXT + PARTICLE_R) { py[i] = -EXT + PARTICLE_R; pvy[i] = Math.abs(pvy[i]) * .3; }
+      if (Math.abs(px[i] - cx0) > RECYCLE_D || Math.abs(py[i] - cy0) > RECYCLE_D) {
+        respawnExtParticle(i); continue;
+      }
+      pt[i] += (extT - pt[i]) * 0.012;
+      if (px[i] > PARTICLE_R * 2 && px[i] < houseX2 - PARTICLE_R * 2 &&
+          py[i] > PARTICLE_R * 2 && py[i] < basY2 - PARTICLE_R * 2) {
+        pext[i] = 0;
+      }
     } else {
-      if (px[i] < G.verX1 + PARTICLE_R) { px[i] = G.verX1 + PARTICLE_R; pvx[i] = Math.abs(pvx[i]) * .5; }
-      if (px[i] > G.verX2 - PARTICLE_R) { px[i] = G.verX2 - PARTICLE_R; pvx[i] = -Math.abs(pvx[i]) * .5; }
-    }
-    if (py[i] < PARTICLE_R) { py[i] = PARTICLE_R; pvy[i] = Math.abs(pvy[i]) * .5; }
-    if (py[i] > SIM_H - PARTICLE_R) { py[i] = SIM_H - PARTICLE_R; pvy[i] = -Math.abs(pvy[i]) * .5; }
-    // Wall collisions
-    const nw = getWallsNear(px[i], py[i]);
-    for (const wi of nw) {
-      const w = walls[wi];
-      if (w.openingId && openWallIds.has(w.openingId)) continue;
-      if (segDistSq(px[i], py[i], w.x1, w.y1, w.x2, w.y2) < PARTICLE_R * PARTICLE_R)
-        reflectOffWall(i, w.x1, w.y1, w.x2, w.y2);
-    }
-    // Radiator heat
-    if (state.heat) {
-      for (const rad of radiators) {
-        const rd2 = (px[i] - rad.cx) ** 2 + (py[i] - rad.cy) ** 2;
-        if (rd2 < HEAT_RADIUS * HEAT_RADIUS) {
-          const f = 1 - Math.sqrt(rd2) / HEAT_RADIUS;
-          pt[i] += (radT - pt[i]) * HEAT_RATE * f;
-          pvy[i] -= f * 0.15;
-        }
+      const inV = px[i] > verX1 && px[i] < verX2 && py[i] > verY1 && py[i] < verY2;
+      if (!inV) {
+        if (px[i] < PARTICLE_R) { px[i] = PARTICLE_R; pvx[i] = Math.abs(pvx[i]) * .5; }
+        if (px[i] > houseX2 - PARTICLE_R) { px[i] = houseX2 - PARTICLE_R; pvx[i] = -Math.abs(pvx[i]) * .5; }
+      } else {
+        if (px[i] < verX1 + PARTICLE_R) { px[i] = verX1 + PARTICLE_R; pvx[i] = Math.abs(pvx[i]) * .5; }
+        if (px[i] > verX2 - PARTICLE_R) { px[i] = verX2 - PARTICLE_R; pvx[i] = -Math.abs(pvx[i]) * .5; }
+      }
+      if (py[i] < PARTICLE_R) { py[i] = PARTICLE_R; pvy[i] = Math.abs(pvy[i]) * .5; }
+      if (py[i] > SIM_H - PARTICLE_R) { py[i] = SIM_H - PARTICLE_R; pvy[i] = -Math.abs(pvy[i]) * .5; }
+      if (px[i] < -PARTICLE_R || px[i] > houseX2 + PARTICLE_R || py[i] < -PARTICLE_R) {
+        pext[i] = 1;
       }
     }
-    // Glass / ground zones
-    for (const hz of heatZones) applyHeatZone(i, hz);
-    // Passive outer wall cooling
-    if (px[i] < 10 || px[i] > G.houseX2 - 10 || py[i] < 6)
-      pt[i] += (extT - pt[i]) * 0.003;
+
+    if (!isExt || (px[i] > -20 && px[i] < houseX2 + 20 && py[i] > -20 && py[i] < basY2 + 10)) {
+      const nw = getWallsNear(px[i], py[i]);
+      for (const wi of nw) {
+        const w = walls[wi];
+        if (w.openingId && openWallIds.has(w.openingId)) continue;
+        if (segDistSq(px[i], py[i], w.x1, w.y1, w.x2, w.y2) < PARTICLE_R * PARTICLE_R)
+          reflectOffWall(i, w.x1, w.y1, w.x2, w.y2);
+      }
+    }
+
+    if (!isExt) {
+      if (state.heat) {
+        for (const rad of radiators) {
+          const rd2 = (px[i] - rad.cx) ** 2 + (py[i] - rad.cy) ** 2;
+          if (rd2 < HEAT_RADIUS * HEAT_RADIUS) {
+            const f = 1 - Math.sqrt(rd2) / HEAT_RADIUS;
+            pt[i] += (radT - pt[i]) * HEAT_RATE * f;
+            pvy[i] -= f * 0.15;
+          }
+        }
+      }
+      for (const hz of heatZones) applyHeatZone(i, hz);
+      if (px[i] < 10 || px[i] > houseX2 - 10 || py[i] < 6)
+        pt[i] += (extT - pt[i]) * 0.003;
+    }
+
     pt[i] = Math.max(0, Math.min(1, pt[i]));
   }
-  // Particle-particle conduction
-  const checks = Math.min(N * 2, 1200);
+
+  const checks = Math.min(N * 2, 1400);
   for (let k = 0; k < checks; k++) {
     const a = (Math.random() * N) | 0, b = (Math.random() * N) | 0;
     if (a === b) continue;
@@ -726,26 +776,51 @@ function stepOnce(dt) {
   }
 }
 
-// ─── RENDERING ─────────────────────────────────────────────────────────────────
 let hmCanvas = null, hmCtx = null;
-const HW = 100, HH = 70;
+const HW = 180, HH = 126;
 const hmData = new Float32Array(HW * HH), hmCnt = new Uint16Array(HW * HH);
+const hmBlurred = new Float32Array(HW * HH);
 
 function buildHeatmap() {
   hmData.fill(0); hmCnt.fill(0);
   const sx = HW / SIM_W, sy = HH / SIM_H;
   for (let i = 0; i < N; i++) {
-    const c = Math.min(HW - 1, (px[i] * sx) | 0), r = Math.min(HH - 1, (py[i] * sy) | 0);
+    if (pext[i] === 1) continue;
+    const c = Math.min(HW - 1, Math.max(0, (px[i] * sx) | 0));
+    const r = Math.min(HH - 1, Math.max(0, (py[i] * sy) | 0));
     hmData[r * HW + c] += pt[i]; hmCnt[r * HW + c]++;
   }
 }
+
+function blurHeatmap() {
+  for (let i = 0; i < HW * HH; i++) hmBlurred[i] = hmCnt[i] > 0 ? hmData[i] / hmCnt[i] : -1;
+  const k = [1, 2, 1, 2, 4, 2, 1, 2, 1];
+  const tmp = hmBlurred.slice();
+  for (let r = 1; r < HH - 1; r++) {
+    for (let c = 1; c < HW - 1; c++) {
+      let v = 0, w = 0, ki = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const a = hmBlurred[(r + dr) * HW + (c + dc)];
+          if (a >= 0) { v += a * k[ki]; w += k[ki]; }
+          ki++;
+        }
+      }
+      tmp[r * HW + c] = w > 0 ? v / w : -1;
+    }
+  }
+  for (let i = 0; i < HW * HH; i++) hmBlurred[i] = tmp[i];
+}
+
 function renderHeatmap() {
   if (!hmCanvas) { hmCanvas = document.createElement('canvas'); hmCanvas.width = HW; hmCanvas.height = HH; hmCtx = hmCanvas.getContext('2d'); }
   buildHeatmap();
+  blurHeatmap();
   const img = hmCtx.createImageData(HW, HH), d = img.data;
   for (let i = 0; i < HW * HH; i++) {
     let r = 10, g = 14, b = 26;
-    if (hmCnt[i] > 0) { const m = COLOR_LUT[colorIdx(hmData[i] / hmCnt[i])].match(/\d+/g); r = +m[0]; g = +m[1]; b = +m[2]; }
+    const t = hmBlurred[i];
+    if (t >= 0) { const m = COLOR_LUT[colorIdx(t)].match(/\d+/g); r = +m[0]; g = +m[1]; b = +m[2]; }
     d[i * 4] = r; d[i * 4 + 1] = g; d[i * 4 + 2] = b; d[i * 4 + 3] = 255;
   }
   hmCtx.putImageData(img, 0, 0);
@@ -753,19 +828,59 @@ function renderHeatmap() {
   ctx.drawImage(hmCanvas, 0, 0, SIM_W, SIM_H);
 }
 
+function drawExterior() {
+  const { rdcY2, basY2, houseX2, verX1, verX2 } = G;
+  const groundY = rdcY2;
+
+  if (state.summer) {
+    ctx.fillStyle = '#0d1f3c'; ctx.fillRect(-EXT, -EXT, SIM_W + 2 * EXT, groundY * 0.55 + EXT);
+    ctx.fillStyle = '#1a6db5'; ctx.fillRect(-EXT, -EXT + (groundY + EXT) * 0.55, SIM_W + 2 * EXT, (groundY + EXT) * 0.45);
+  } else {
+    ctx.fillStyle = '#12202e'; ctx.fillRect(-EXT, -EXT, SIM_W + 2 * EXT, groundY + EXT);
+  }
+
+  const extT = fromCelsius(state.extCelsius);
+  const col = COLOR_LUT[colorIdx(extT)].match(/\d+/g);
+  ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.12)`;
+  ctx.fillRect(-EXT, -EXT, SIM_W + 2 * EXT, groundY + EXT);
+
+  ctx.fillStyle = '#1a0e05';
+  ctx.fillRect(-EXT, groundY, houseX2 + EXT * 2 + (verX2 - houseX2), SIM_H - groundY + EXT);
+  ctx.fillStyle = '#1e4d10';
+  ctx.fillRect(-EXT, groundY - 5, SIM_W + 2 * EXT, 9);
+  ctx.fillStyle = '#2d6a1a';
+  ctx.fillRect(-EXT, groundY - 3, SIM_W + 2 * EXT, 4);
+
+  if (state.summer) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,220,50,0.9)';
+    ctx.shadowColor = 'rgba(255,180,0,0.6)'; ctx.shadowBlur = 22;
+    ctx.beginPath(); ctx.arc(-90, -105, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.restore();
+  } else {
+    ctx.fillStyle = 'rgba(200,220,255,0.65)';
+    ctx.beginPath(); ctx.arc(-90, -100, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(140,160,180,0.45)';
+    for (const [ox, oy, r] of [[-40,-85,15],[-22,-85,12],[-31,-93,13]]) {
+      ctx.beginPath(); ctx.arc(ox, oy, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  ctx.font = 'bold 10px Segoe UI'; ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Ext ${state.extCelsius > 0 ? '+' : ''}${state.extCelsius}°C`, -EXT + 5, -EXT + 14);
+}
+
 function drawFans() {
   for (const fan of fans) {
     fan.bladeAngle = (fan.bladeAngle || 0) + 0.09 * fan.strength;
     const r = 14, arrowLen = r + 14;
-    // Cone
     ctx.save(); ctx.translate(fan.x, fan.y); ctx.rotate(fan.angle);
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 65, -Math.PI / 4, Math.PI / 4); ctx.closePath();
     ctx.fillStyle = 'rgba(96,165,250,0.07)'; ctx.fill(); ctx.restore();
-    // Body
     ctx.beginPath(); ctx.arc(fan.x, fan.y, r, 0, Math.PI * 2);
     ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = 'rgba(96,165,250,0.15)'; ctx.fill();
-    // Blades
     ctx.save(); ctx.translate(fan.x, fan.y); ctx.rotate(fan.bladeAngle);
     for (let b = 0; b < 4; b++) {
       ctx.rotate(Math.PI / 2);
@@ -773,17 +888,14 @@ function drawFans() {
       ctx.strokeStyle = 'rgba(147,197,253,0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
     }
     ctx.restore();
-    // Arrow
     const ax = fan.x + Math.cos(fan.angle) * arrowLen, ay = fan.y + Math.sin(fan.angle) * arrowLen;
     ctx.beginPath(); ctx.moveTo(fan.x, fan.y); ctx.lineTo(ax, ay);
     ctx.strokeStyle = 'rgba(250,204,21,0.9)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.save(); ctx.translate(ax, ay); ctx.rotate(fan.angle);
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-7, -4); ctx.lineTo(-7, 4); ctx.closePath();
     ctx.fillStyle = 'rgba(250,204,21,0.9)'; ctx.fill(); ctx.restore();
-    // Rotate handle
     ctx.beginPath(); ctx.arc(ax, ay, 5, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(250,204,21,0.75)'; ctx.fill();
-    // Fan label
     ctx.font = '9px Segoe UI'; ctx.fillStyle = '#93c5fd'; ctx.textAlign = 'center';
     ctx.fillText('#' + (fan.id + 1), fan.x, fan.y + r + 10);
   }
@@ -791,16 +903,23 @@ function drawFans() {
 
 function drawOpeningIndicators() {
   for (const op of openings) {
-    // Click target dot
     ctx.beginPath(); ctx.arc(op.simX, op.simY, 4, 0, Math.PI * 2);
     ctx.fillStyle = op.isOpen ? 'rgba(16,185,129,0.6)' : 'rgba(148,163,184,0.25)';
     ctx.fill();
     if (op.isOpen) {
-      // Green gap highlight over wall segments
       for (const seg of op.wallSegs) {
         ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2);
         ctx.strokeStyle = 'rgba(16,185,129,0.7)'; ctx.lineWidth = 3; ctx.setLineDash([4, 2]); ctx.stroke();
         ctx.setLineDash([]);
+      }
+      if (op.type === 'velux' && op.veluxAngle !== undefined) {
+        const ang = op.veluxAngle;
+        const ax = op.simX + Math.cos(ang) * 20, ay = op.simY + Math.sin(ang) * 20;
+        ctx.beginPath(); ctx.moveTo(op.simX, op.simY); ctx.lineTo(ax, ay);
+        ctx.strokeStyle = 'rgba(250,204,21,0.85)'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-6, -3); ctx.lineTo(-6, 3); ctx.closePath();
+        ctx.fillStyle = 'rgba(250,204,21,0.85)'; ctx.fill(); ctx.restore();
       }
     }
   }
@@ -810,7 +929,8 @@ function drawScene(cw, ch) {
   const { sc, offX, offY } = getTransform(cw, ch);
   ctx.save(); ctx.translate(offX, offY); ctx.scale(sc, sc);
 
-  // Room fills
+  drawExterior();
+
   ctx.globalAlpha = 0.22;
   const fills = [
     [0, G.basY1, G.houseX2, G.basY2 - G.basY1, '#1e1b4b'],
@@ -822,19 +942,18 @@ function drawScene(cw, ch) {
   for (const [x, y, w, h, c] of fills) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
   ctx.globalAlpha = 1;
 
-  // Heatmap
-  ctx.globalAlpha = 0.45; renderHeatmap(); ctx.globalAlpha = 1;
+  ctx.globalAlpha = 0.48; renderHeatmap(); ctx.globalAlpha = 1;
 
-  // Particles
   const PR2 = PARTICLE_R * 1.4;
   for (let i = 0; i < N; i++) {
     ctx.fillStyle = COLOR_LUT[colorIdx(pt[i])];
+    ctx.globalAlpha = pext[i] === 1 ? 0.6 : 1.0;
     ctx.beginPath(); ctx.arc(px[i], py[i], PR2, 0, Math.PI * 2); ctx.fill();
   }
+  ctx.globalAlpha = 1;
 
-  // Walls
   for (const w of walls) {
-    if (w.openingId && openWallIds.has(w.openingId)) continue; // skip open
+    if (w.openingId && openWallIds.has(w.openingId)) continue;
     ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2);
     if (w.type === 'glass') { ctx.strokeStyle = 'rgba(147,210,255,0.72)'; ctx.lineWidth = 2.5; ctx.setLineDash([4, 3]); }
     else if (w.type === 'ground') { ctx.strokeStyle = 'rgba(100,80,40,0.6)'; ctx.lineWidth = 4; ctx.setLineDash([]); }
@@ -842,10 +961,8 @@ function drawScene(cw, ch) {
     ctx.stroke(); ctx.setLineDash([]);
   }
 
-  // Opening indicators
   drawOpeningIndicators();
 
-  // Radiators
   for (const rad of radiators) {
     ctx.fillStyle = state.heat ? 'rgba(255,120,30,0.85)' : 'rgba(80,80,100,0.5)';
     if (state.heat) { ctx.shadowColor = 'rgba(255,100,20,0.5)'; ctx.shadowBlur = 7; }
@@ -853,10 +970,8 @@ function drawScene(cw, ch) {
     ctx.shadowBlur = 0;
   }
 
-  // Fans
   drawFans();
 
-  // Ripples
   for (let i = ripples.length - 1; i >= 0; i--) {
     const rp = ripples[i]; rp.r += 2.5; rp.a -= 0.045;
     if (rp.a <= 0) { ripples.splice(i, 1); continue; }
@@ -864,22 +979,20 @@ function drawScene(cw, ch) {
     ctx.strokeStyle = `rgba(16,185,129,${rp.a})`; ctx.lineWidth = 2; ctx.stroke();
   }
 
-  // Labels
   ctx.font = 'bold 9px Segoe UI,sans-serif'; ctx.fillStyle = 'rgba(200,210,230,0.65)'; ctx.textAlign = 'center';
   const labels = [
     [100, G.basY1 + 28, 'CAVE'], [100, G.rdcY1 + 25, 'HALL'], [290, G.rdcY1 + 25, 'CUISINE'],
     [550, G.rdcY1 + 25, 'SALON'], [850, G.verY1 + 25, 'VERANDA'],
-    [115, G.r1Y1 + 25, 'BÉBÉ'], [350, G.r1Y1 + 25, 'SdB'], [585, G.r1Y1 + 25, 'PARENTS'],
+    [115, G.r1Y1 + 25, 'BEBE'], [350, G.r1Y1 + 25, 'SdB'], [585, G.r1Y1 + 25, 'PARENTS'],
     [340, G.r2Y1 + 12, 'COMBLES'], [595, G.basY1 + 28, 'ATELIER'],
   ];
   for (const [x, y, t] of labels) ctx.fillText(t, x, y);
   ctx.font = '11px Segoe UI';
   ctx.fillStyle = state.summer ? 'rgba(255,180,30,.9)' : 'rgba(100,180,255,.9)';
-  ctx.fillText(state.summer ? '☀ ÉTÉ' : '❄ HIVER', SIM_W - 48, 14);
+  ctx.fillText(state.summer ? 'ETE' : 'HIVER', SIM_W - 48, 14);
   ctx.restore();
 }
 
-// ─── MAIN LOOP ─────────────────────────────────────────────────────────────────
 let lastTime = 0, fpsTime = 0, fpsCount = 0;
 function loop(ts) {
   requestAnimationFrame(loop);
@@ -903,13 +1016,18 @@ function loop(ts) {
   drawScene(cw, ch);
 }
 
-// ─── UI CONTROLS ───────────────────────────────────────────────────────────────
 let controlsOpen = window.innerWidth >= 768;
 
 function toggleControls() {
   controlsOpen = !controlsOpen;
   document.getElementById('controls-panel').classList.toggle('collapsed', !controlsOpen);
   document.getElementById('ctrl-toggle').classList.toggle('panel-open', controlsOpen);
+}
+
+function setExtTemp(v) {
+  state.extCelsius = Math.max(-10, Math.min(45, +v));
+  const el = document.getElementById('ext-temp-val');
+  if (el) el.textContent = (state.extCelsius > 0 ? '+' : '') + state.extCelsius + '°C';
 }
 
 function toggle(key) {
@@ -921,8 +1039,13 @@ function toggle(key) {
   } else if (key === 'season') {
     state.summer = !state.summer;
     const b = document.getElementById('btn-season');
-    b.textContent = state.summer ? '☀ Été' : '❄ Hiver';
+    b.textContent = state.summer ? '☀ Ete' : '❄ Hiver';
     b.className = 'btn-toggle' + (state.summer ? ' active active-warm' : '');
+    const preset = state.summer ? 35 : -2;
+    state.extCelsius = preset;
+    const sl = document.getElementById('ext-temp-slider');
+    if (sl) { sl.value = preset; }
+    setExtTemp(preset);
   } else if (key === 'speed') {
     state.speed = !state.speed;
     const b = document.getElementById('btn-speed');
@@ -952,11 +1075,9 @@ function handleCanvasTap(sx, sy, isTouch) {
   const sim = screenToSim(sx, sy, cw, ch);
   if (interactionMode === 'fan') {
     if (fans.length >= 3) return;
-    // Check if tapping existing fan for interaction
     if (checkFanTap(sim.x, sim.y)) return;
     addFan(sim.x, sim.y); return;
   }
-  // Find closest opening within 22 sim units
   let best = null, bestD = 22;
   for (const op of openings) {
     const d = Math.hypot(sim.x - op.simX, sim.y - op.simY);
@@ -965,7 +1086,6 @@ function handleCanvasTap(sx, sy, isTouch) {
   if (best) toggleOpening(best.id);
 }
 
-// ─── FAN INTERACTIONS ──────────────────────────────────────────────────────────
 function addFan(sx, sy) {
   fans.push({ id: fanIdCtr++, x: sx, y: sy, angle: -Math.PI / 2, strength: 1.0, active: true, bladeAngle: 0 });
   updateFanPanel();
@@ -1011,8 +1131,14 @@ function updateFanPanel() {
   }
 }
 
-// ─── OPENINGS ACCORDION UI ─────────────────────────────────────────────────────
-const ZONE_LABELS = { basement: 'Sous-sol', rdc: 'RDC', veranda: 'Véranda', r1: 'R+1', r2: 'R+2 Combles' };
+function setVeluxAngle(id, deg) {
+  const op = openings.find(o => o.id === id);
+  if (op) op.veluxAngle = (+deg) * Math.PI / 180;
+  const lbl = document.getElementById('va-lbl-' + id);
+  if (lbl) lbl.textContent = (+deg) + '°';
+}
+
+const ZONE_LABELS = { basement: 'Sous-sol', rdc: 'RDC', veranda: 'Veranda', r1: 'R+1', r2: 'R+2 Combles' };
 
 function buildOpeningsUI() {
   const container = document.getElementById('openings-accordion');
@@ -1033,6 +1159,15 @@ function buildOpeningsUI() {
       btn.id = 'op-btn-' + op.id; btn.className = 'btn-toggle' + (op.isOpen ? ' active active-open' : '');
       btn.textContent = op.label; btn.onclick = () => toggleOpening(op.id);
       body.appendChild(btn);
+      if (op.type === 'velux' && op.veluxAngle !== undefined) {
+        const row = document.createElement('div'); row.className = 'velux-row';
+        const deg = Math.round(op.veluxAngle * 180 / Math.PI);
+        row.innerHTML = `<span title="Direction courant d'air">↕</span>
+          <input type="range" min="-90" max="90" step="5" value="${deg}"
+            oninput="setVeluxAngle('${op.id}',+this.value)">
+          <span id="va-lbl-${op.id}" style="min-width:30px;text-align:right">${deg}°</span>`;
+        body.appendChild(row);
+      }
     }
     grp.appendChild(header); grp.appendChild(body);
     container.appendChild(grp);
@@ -1053,9 +1188,7 @@ function refreshAccordionCounts() {
   }
 }
 
-// ─── INIT ──────────────────────────────────────────────────────────────────────
 resize();
-// Sync panel visibility with initial controlsOpen state
 document.getElementById('controls-panel').classList.toggle('collapsed', !controlsOpen);
 document.getElementById('ctrl-toggle').classList.toggle('panel-open', controlsOpen);
 spawnParticles();
