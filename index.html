@@ -3,35 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>House Thermodynamics Simulation</title>
+<title>House Thermodynamics</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0e1a;color:#e0e6f0;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column}
-#app{display:flex;flex-direction:column;height:100vh;width:100vw}
-#topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:#111827;border-bottom:1px solid #1f2d45;flex-shrink:0;flex-wrap:wrap;gap:4px}
-#topbar h1{font-size:13px;font-weight:600;color:#60a5fa;letter-spacing:.5px;white-space:nowrap}
-#stats{display:flex;gap:10px;font-size:11px;color:#94a3b8}
-.stat{display:flex;align-items:center;gap:4px}
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;position:relative}
+#topbar{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:#111827;border-bottom:1px solid #1f2d45;flex-shrink:0;flex-wrap:wrap;gap:4px;z-index:30}
+#topbar h1{font-size:12px;font-weight:600;color:#60a5fa;letter-spacing:.4px;white-space:nowrap}
+#stats{display:flex;gap:8px;font-size:10px;color:#94a3b8}
+.stat{display:flex;align-items:center;gap:3px}
 .stat-val{color:#f0f9ff;font-weight:600}
-#canvas-wrap{flex:1;position:relative;overflow:hidden}
-canvas{position:absolute;top:0;left:0;width:100%;height:100%}
-#controls{background:#111827;border-top:1px solid #1f2d45;padding:6px 8px;flex-shrink:0;display:flex;flex-wrap:wrap;gap:5px;align-items:center;justify-content:center}
-.ctrl-group{display:flex;gap:4px;align-items:center}
-.ctrl-label{font-size:10px;color:#64748b;white-space:nowrap;padding-right:2px}
-button{border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:30px}
-.btn-toggle{background:#1e293b;color:#94a3b8;border:1px solid #334155}
-.btn-toggle.active{background:#1d4ed8;color:#fff;border-color:#3b82f6;box-shadow:0 0 8px rgba(59,130,246,.4)}
-.btn-toggle.active-warm{background:#b45309;color:#fff;border-color:#f59e0b;box-shadow:0 0 8px rgba(245,158,11,.4)}
-.btn-toggle.active-open{background:#065f46;color:#fff;border-color:#10b981;box-shadow:0 0 8px rgba(16,185,129,.3)}
-#legend{position:absolute;bottom:8px;left:8px;background:rgba(10,14,26,.8);border:1px solid #1f2d45;border-radius:6px;padding:6px 8px;font-size:10px;pointer-events:none}
-.legend-row{display:flex;align-items:center;gap:5px;margin-bottom:3px}
-.legend-swatch{width:12px;height:8px;border-radius:2px}
-#fps-counter{position:absolute;top:4px;right:6px;font-size:10px;color:#475569;pointer-events:none}
-@media(max-width:600px){
-  button{padding:4px 7px;font-size:10px;min-height:26px}
-  #topbar h1{font-size:11px}
-  .ctrl-label{font-size:9px}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;touch-action:none}
+canvas{position:absolute;top:0;left:0;width:100%;height:100%;touch-action:none;cursor:grab}
+canvas.fan-mode{cursor:crosshair}
+#zoom-overlay{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:3px;z-index:10}
+.zoom-btn{background:rgba(17,24,39,.85);color:#94a3b8;border:1px solid #334155;border-radius:5px;width:28px;height:28px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
+.zoom-btn:active{background:#1e293b}
+#legend{position:absolute;bottom:6px;left:6px;background:rgba(10,14,26,.85);border:1px solid #1f2d45;border-radius:5px;padding:5px 7px;font-size:9px;pointer-events:none;z-index:5}
+.legend-row{display:flex;align-items:center;gap:4px;margin-bottom:2px}
+.legend-swatch{width:10px;height:7px;border-radius:2px}
+#fps-counter{position:absolute;top:4px;right:40px;font-size:9px;color:#475569;pointer-events:none;z-index:5}
+#ctrl-bar{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#111827;border-top:1px solid #1f2d45;flex-shrink:0;gap:5px;z-index:30}
+#quick-btns{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+#ctrl-toggle{background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation;flex-shrink:0}
+#ctrl-toggle.panel-open{background:#1d4ed8;color:#fff;border-color:#3b82f6}
+#controls-panel{background:#0f172a;border-top:1px solid #1f2d45;padding:6px 8px;flex-shrink:0;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start;max-height:200px;overflow-y:auto}
+#controls-panel.collapsed{display:none}
+@media(max-width:768px){
+  #controls-panel:not(.collapsed){
+    position:absolute;bottom:46px;left:0;right:0;max-height:48vh;z-index:25;border-top:2px solid #1d4ed8
+  }
 }
+button{border:none;border-radius:6px;padding:4px 9px;font-size:10px;font-weight:600;cursor:pointer;transition:all .12s;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:26px}
+.btn-toggle{background:#1e293b;color:#94a3b8;border:1px solid #334155}
+.btn-toggle.active{background:#1d4ed8;color:#fff;border-color:#3b82f6;box-shadow:0 0 6px rgba(59,130,246,.35)}
+.btn-toggle.active-warm{background:#b45309;color:#fff;border-color:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.35)}
+.btn-toggle.active-open{background:#065f46;color:#fff;border-color:#10b981;box-shadow:0 0 6px rgba(16,185,129,.28)}
+.panel-section{width:100%}
+.panel-header{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;padding:3px 0;border-bottom:1px solid #1e293b;margin-bottom:4px}
+.acc-group{display:flex;flex-direction:column;gap:2px;min-width:110px}
+.acc-header{background:#1e293b;border:1px solid #334155;border-radius:5px;padding:4px 8px;font-size:10px;font-weight:600;color:#94a3b8;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+.acc-header:active{background:#273344}
+.acc-body{display:none;flex-direction:column;gap:3px;padding-top:3px}
+.acc-body.open{display:flex}
+.fan-row{display:flex;align-items:center;gap:6px;background:#1e293b;border-radius:5px;padding:4px 8px;font-size:10px;color:#94a3b8}
+.fan-row input[type=range]{flex:1;height:3px;accent-color:#60a5fa}
+.fan-row button{padding:2px 7px;min-height:20px;font-size:10px;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b}
+#fan-section{display:flex;flex-direction:column;gap:4px;min-width:200px}
 </style>
 </head>
 <body>
@@ -39,696 +57,1009 @@ button{border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight
   <div id="topbar">
     <h1>&#x1f321; House Thermodynamics</h1>
     <div id="stats">
-      <div class="stat">Avg T: <span class="stat-val" id="s-avg">--</span>&deg;C</div>
-      <div class="stat">Min: <span class="stat-val" id="s-min">--</span>&deg;C</div>
-      <div class="stat">Max: <span class="stat-val" id="s-max">--</span>&deg;C</div>
-      <div class="stat">N: <span class="stat-val" id="s-n">0</span></div>
+      <div class="stat">Avg:<span class="stat-val" id="s-avg">--</span>&deg;</div>
+      <div class="stat">Min:<span class="stat-val" id="s-min">--</span></div>
+      <div class="stat">Max:<span class="stat-val" id="s-max">--</span></div>
+      <div class="stat">N:<span class="stat-val" id="s-n">0</span></div>
     </div>
   </div>
   <div id="canvas-wrap">
     <canvas id="sim"></canvas>
+    <div id="zoom-overlay">
+      <button class="zoom-btn" onclick="zoomBtn(1.3)">+</button>
+      <button class="zoom-btn" onclick="zoomBtn(0.77)">&minus;</button>
+      <button class="zoom-btn" onclick="zoomBtn(0)">&#x229F;</button>
+    </div>
     <div id="legend">
-      <div class="legend-row"><div class="legend-swatch" style="background:#4488ff"></div>Cold (0&deg;C)</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#22c55e"></div>Mild (18&deg;C)</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#f97316"></div>Warm (25&deg;C)</div>
-      <div class="legend-row"><div class="legend-swatch" style="background:#ef4444"></div>Hot (40&deg;C)</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#4488ff"></div>0&deg;C</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#22c55e"></div>18&deg;C</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#f97316"></div>28&deg;C</div>
+      <div class="legend-row"><div class="legend-swatch" style="background:#ef4444"></div>40&deg;C</div>
     </div>
     <div id="fps-counter">60 FPS</div>
   </div>
-  <div id="controls">
-    <div class="ctrl-group">
-      <span class="ctrl-label">HEAT</span>
-      <button class="btn-toggle active active-warm" id="btn-heat" onclick="toggle('heat')">Radiators ON</button>
+  <div id="ctrl-bar">
+    <div id="quick-btns">
+      <button class="btn-toggle active active-warm" id="btn-heat" onclick="toggle('heat')">&#x1f525; ON</button>
+      <button class="btn-toggle" id="btn-season" onclick="toggle('season')">&#x2744; Hiver</button>
+      <button class="btn-toggle" id="btn-speed" onclick="toggle('speed')">1&times;</button>
+      <button class="btn-toggle" id="btn-fan-mode" onclick="toggle('fanMode')">&#x1f4a8; Ventilo</button>
     </div>
-    <div class="ctrl-group">
-      <span class="ctrl-label">SEASON</span>
-      <button class="btn-toggle" id="btn-season" onclick="toggle('season')">Winter</button>
+    <button id="ctrl-toggle" onclick="toggleControls()">&#9776; Ouvrants</button>
+  </div>
+  <div id="controls-panel" class="collapsed">
+    <div id="fan-section">
+      <div class="panel-header">Ventilateurs <span id="fan-count">(0/3)</span></div>
+      <div id="fan-list"></div>
     </div>
-    <div class="ctrl-group">
-      <span class="ctrl-label">OPENINGS</span>
-      <button class="btn-toggle" id="btn-cave" onclick="toggle('cave')">Cave Door</button>
-      <button class="btn-toggle" id="btn-veranda" onclick="toggle('veranda')">Veranda Bay</button>
-      <button class="btn-toggle" id="btn-velux" onclick="toggle('velux')">Velux R+2</button>
-      <button class="btn-toggle" id="btn-facade" onclick="toggle('facade')">Facade Windows</button>
-    </div>
-    <div class="ctrl-group">
-      <span class="ctrl-label">SIM</span>
-      <button class="btn-toggle" id="btn-speed" onclick="toggle('speed')">1x Speed</button>
-    </div>
+    <div id="openings-accordion" style="display:flex;flex-wrap:wrap;gap:6px"></div>
   </div>
 </div>
-
 <script>
 'use strict';
 
-const state = {
-  heat: true,
-  summer: false,
-  cave: false,
-  veranda: false,
-  velux: false,
-  facade: false,
-  speed: false
-};
+// ─── STATE ────────────────────────────────────────────────────────────────────
+const state = { heat: true, summer: false, speed: false };
+const vp = { zoom: 1, panX: 0, panY: 0, maxZoom: 4 };
 
+// ─── CANVAS ───────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('sim');
-const ctx = canvas.getContext('2d', {alpha:false});
-
-let W = 0, H = 0, scale = 1;
+const ctx = canvas.getContext('2d', { alpha: false });
+let scale = 1;
 const SIM_W = 1000, SIM_H = 700;
 
+function getTransform(cw, ch) {
+  const sc = scale * vp.zoom;
+  return { sc, offX: (cw - SIM_W * sc) / 2 - vp.panX * sc, offY: (ch - SIM_H * sc) / 2 - vp.panY * sc };
+}
+function screenToSim(sx, sy, cw, ch) {
+  const { sc, offX, offY } = getTransform(cw, ch);
+  return { x: (sx - offX) / sc, y: (sy - offY) / sc };
+}
+function clampPan(cw, ch) {
+  const sc = scale * vp.zoom;
+  const mx = Math.max(0, (SIM_W * sc - cw) / (2 * sc));
+  const my = Math.max(0, (SIM_H * sc - ch) / (2 * sc));
+  vp.panX = Math.max(-mx, Math.min(mx, vp.panX));
+  vp.panY = Math.max(-my, Math.min(my, vp.panY));
+}
 function resize() {
   const wrap = document.getElementById('canvas-wrap');
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const cw = wrap.clientWidth, ch = wrap.clientHeight;
-  canvas.width = cw * dpr;
-  canvas.height = ch * dpr;
-  canvas.style.width = cw + 'px';
-  canvas.style.height = ch + 'px';
-  W = canvas.width;
-  H = canvas.height;
-  scale = Math.min(W / SIM_W, H / SIM_H);
-  ctx.scale(dpr, dpr);
+  canvas.width = cw * dpr; canvas.height = ch * dpr;
+  canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
+  scale = Math.min(cw / SIM_W, ch / SIM_H);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  clampPan(cw, ch);
   buildGeometry();
 }
 window.addEventListener('resize', resize);
 
+// ─── ZOOM BUTTONS ─────────────────────────────────────────────────────────────
+function zoomBtn(f) {
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  if (f === 0) { vp.zoom = 1; vp.panX = 0; vp.panY = 0; }
+  else vp.zoom = Math.max(1, Math.min(vp.maxZoom, vp.zoom * f));
+  clampPan(cw, ch);
+}
+
+// ─── TOUCH / MOUSE EVENTS ─────────────────────────────────────────────────────
+let touchSt = { mode: 'none', lx: 0, ly: 0, dist0: 0, z0: 1, px0: 0, py0: 0, smx: 0, smy: 0, scmx: 0, scmy: 0, moved: false };
+function td(t1, t2) { return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY); }
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  touchSt.moved = false;
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  if (e.touches.length === 1) {
+    touchSt.mode = 'pan'; touchSt.lx = e.touches[0].clientX; touchSt.ly = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    touchSt.mode = 'pinch';
+    touchSt.dist0 = td(e.touches[0], e.touches[1]); touchSt.z0 = vp.zoom;
+    touchSt.px0 = vp.panX; touchSt.py0 = vp.panY;
+    const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+    const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const s = screenToSim(mx, my, cw, ch);
+    touchSt.smx = s.x; touchSt.smy = s.y; touchSt.scmx = mx; touchSt.scmy = my;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  touchSt.moved = true;
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  if (touchSt.mode === 'pan' && e.touches.length === 1) {
+    const sc = scale * vp.zoom;
+    vp.panX -= (e.touches[0].clientX - touchSt.lx) / sc;
+    vp.panY -= (e.touches[0].clientY - touchSt.ly) / sc;
+    touchSt.lx = e.touches[0].clientX; touchSt.ly = e.touches[0].clientY;
+    clampPan(cw, ch);
+  } else if (touchSt.mode === 'pinch' && e.touches.length === 2) {
+    const dist = td(e.touches[0], e.touches[1]);
+    vp.zoom = Math.max(1, Math.min(vp.maxZoom, touchSt.z0 * dist / touchSt.dist0));
+    const nsc = scale * vp.zoom;
+    vp.panX = ((cw / 2 - SIM_W * nsc / 2) + touchSt.smx * nsc - touchSt.scmx) / nsc;
+    vp.panY = ((ch / 2 - SIM_H * nsc / 2) + touchSt.smy * nsc - touchSt.scmy) / nsc;
+    clampPan(cw, ch);
+  }
+  if (touchSt.mode === 'pan' && e.touches.length === 2) touchSt.mode = 'pinch';
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  if (e.touches.length === 0 && !touchSt.moved) {
+    const t = e.changedTouches[0];
+    handleCanvasTap(t.clientX, t.clientY, true);
+  }
+  if (e.touches.length < 2) touchSt.mode = e.touches.length === 1 ? 'pan' : 'none';
+}, { passive: false });
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  const f = e.deltaY < 0 ? 1.12 : 0.89;
+  const newZ = Math.max(1, Math.min(vp.maxZoom, vp.zoom * f));
+  const s = screenToSim(e.clientX, e.clientY, cw, ch);
+  vp.zoom = newZ;
+  const nsc = scale * newZ;
+  vp.panX = ((cw / 2 - SIM_W * nsc / 2) + s.x * nsc - e.clientX) / nsc;
+  vp.panY = ((ch / 2 - SIM_H * nsc / 2) + s.y * nsc - e.clientY) / nsc;
+  clampPan(cw, ch);
+}, { passive: false });
+
+let mouseDrag = { active: false, lx: 0, ly: 0, moved: false };
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  mouseDrag.active = true; mouseDrag.lx = e.clientX; mouseDrag.ly = e.clientY; mouseDrag.moved = false;
+});
+canvas.addEventListener('mousemove', e => {
+  if (!mouseDrag.active) return;
+  const dx = e.clientX - mouseDrag.lx, dy = e.clientY - mouseDrag.ly;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) mouseDrag.moved = true;
+  if (interactionMode === 'fan' && activeFanDrag) {
+    doFanDrag(e.clientX, e.clientY); return;
+  }
+  if (mouseDrag.moved && interactionMode !== 'fan') {
+    const sc = scale * vp.zoom;
+    vp.panX -= dx / sc; vp.panY -= dy / sc;
+    clampPan(canvas.clientWidth, canvas.clientHeight);
+  }
+  mouseDrag.lx = e.clientX; mouseDrag.ly = e.clientY;
+});
+canvas.addEventListener('mouseup', e => {
+  if (!mouseDrag.active) return;
+  if (activeFanDrag) { activeFanDrag = null; mouseDrag.active = false; return; }
+  if (!mouseDrag.moved) handleCanvasTap(e.clientX, e.clientY, false);
+  mouseDrag.active = false;
+});
+
+// ─── GEOMETRY CONSTANTS ────────────────────────────────────────────────────────
 const G = {
   basY1: 490, basY2: 700,
   rdcY1: 280, rdcY2: 490,
-  r1Y1:  100, r1Y2:  280,
-  r2Y1:    0, r2Y2:  100,
+  r1Y1: 100, r1Y2: 280,
+  r2Y1: 0, r2Y2: 100,
   houseX1: 0, houseX2: 700,
   verX1: 700, verX2: 1000,
-  verY1: 285, verY2: 460,
-  verRoofLeft: 0,
-  verRoofRight: 0,
+  verY1: 285, verY2: 460
 };
 
-let walls = [];
-let rooms = [];
-let radiators = [];
-let openings = [];
-let heatZones = [];
-
+let walls = [], openings = [], radiators = [], heatZones = [];
+let openWallIds = new Set();
 const GRID_COLS = 50, GRID_ROWS = 35;
-let gridW, gridH;
-let wallGrid = [];
+let gridW, gridH, wallGrid = [];
 
-function buildGeometry() {
-  walls = [];
-  rooms = [];
-  radiators = [];
-  openings = [];
-  heatZones = [];
+// ─── FAN SYSTEM ───────────────────────────────────────────────────────────────
+let fans = [], fanIdCtr = 0;
+let interactionMode = 'normal';
+let activeFanDrag = null;
 
-  addWall(0, G.rdcY1, 0, G.rdcY2, 'wall');
-  addWall(G.houseX2, G.rdcY1, G.houseX2, G.rdcY2, 'wall');
-  addWall(0, G.rdcY2, G.houseX2, G.rdcY2, 'wall');
-  addWall(0, G.rdcY1, G.houseX2, G.rdcY1, 'wall');
+// ─── RIPPLES ──────────────────────────────────────────────────────────────────
+let ripples = [];
+function addRipple(x, y) { ripples.push({ x, y, r: 0, a: 0.85 }); }
 
-  addWall(0, G.basY1, 0, G.basY2, 'wall');
-  addWall(G.houseX2, G.basY1, G.houseX2, G.basY2, 'wall');
-  addWall(0, G.basY2, G.houseX2, G.basY2, 'ground');
-
-  addWall(0, G.r1Y1, 0, G.r1Y2, 'wall');
-  addWall(G.houseX2, G.r1Y1, G.houseX2, G.r1Y2, 'wall');
-  addWall(0, G.r1Y2, G.houseX2, G.r1Y2, 'wall');
-  addWall(0, G.r1Y1, G.houseX2, G.r1Y1, 'wall');
-
-  addWall(0, G.r1Y1, 180, G.r2Y1, 'wall');
-  addWall(180, G.r2Y1, 520, G.r2Y1, 'wall');
-  addWall(520, G.r2Y1, G.houseX2, G.r1Y1, 'wall');
-
-  addWall(G.verX1, G.verY1, G.verX2, G.verY1+65, 'glass');
-  addWall(G.verX2, G.verY1+65, G.verX2, G.verY2, 'glass');
-  addWall(G.verX1, G.verY2, G.verX2, G.verY2, 'wall');
-  addWall(G.verX1, G.verY1, G.verX1, G.verY2, 'wall');
-
-  addWallSegmented(0, G.rdcY2, G.houseX2, G.rdcY2, 'wall', 0, [[400,480]]);
-  addWallSegmented(0, G.rdcY1, G.houseX2, G.rdcY1, 'wall', 0, [[350,430]]);
-  addWallSegmented(0, G.r1Y1, G.houseX2, G.r1Y1, 'wall', 0, [[300,380]]);
-
-  addWallSegmented(200, G.rdcY1, 200, G.rdcY2, 'wall', 1, [[G.rdcY1+60, G.rdcY1+120]]);
-
-  addWall(400, G.rdcY1+100, 400, G.rdcY2, 'wall');
-  addWall(400, G.rdcY1+20, 400, G.rdcY1+100, 'glass');
-
-  addWall(100, G.rdcY1+80, 200, G.rdcY1+80, 'wall');
-  addWall(100, G.rdcY1+80, 100, G.rdcY2, 'wall');
-
-  addWall(G.verX1, G.rdcY1, G.verX1, G.rdcY1+25, 'wall');
-  addWall(G.verX1, G.rdcY1+25, G.verX1, G.rdcY1+65, 'glass');
-  addWall(G.verX1, G.rdcY1+65, G.verX1, G.rdcY1+75, 'wall');
-  addWall(G.verX1, G.rdcY1+75, G.verX1, G.rdcY1+165, 'wall');
-  addWall(G.verX1, G.rdcY1+165, G.verX1, G.verY2, 'wall');
-
-  addWallSegmented(230, G.r1Y1, 230, G.r1Y2, 'wall', 1, [[G.r1Y1+50, G.r1Y1+110]]);
-  addWallSegmented(480, G.r1Y1, 480, G.r1Y2, 'wall', 1, [[G.r1Y1+50, G.r1Y1+110]]);
-
-  addWallSegmented(200, G.basY1, 200, G.basY2, 'wall', 1, [[G.basY1+30, G.basY1+90]]);
-  addWallSegmented(500, G.basY1, 500, G.basY2, 'wall', 1, [[G.basY1+30, G.basY1+90]]);
-
-  addRadiator(30, G.rdcY2-20, 60, 12, 'rdc');
-  addRadiator(320, G.rdcY2-20, 60, 12, 'rdc');
-  addRadiator(570, G.rdcY2-20, 60, 12, 'rdc');
-  addRadiator(G.verX1+10, G.verY2-20, 50, 10, 'veranda');
-  addRadiator(30, G.r1Y2-20, 55, 12, 'r1');
-  addRadiator(460, G.r1Y1+80, 12, 50, 'r1');
-  addRadiator(640, G.r1Y2-20, 55, 12, 'r1');
-  addRadiator(100, G.r2Y1+20, 55, 12, 'r2');
-  addRadiator(560, G.r2Y1+20, 55, 12, 'r2');
-
-  heatZones.push({x1:0, y1:G.basY2-20, x2:G.houseX2, y2:G.basY2, temp:0.22, cond:0.008, type:'ground'});
-
-  addGlassZone(0, G.rdcY1+20, 8, G.rdcY1+70, 'facade');
-  addGlassZone(0, G.rdcY1+20, 8, G.rdcY1+60, 'facade');
-  addGlassZone(G.houseX2-8, G.rdcY1+30, G.houseX2, G.rdcY1+70, 'facade');
-  addGlassZone(G.houseX2-8, G.r1Y1+30, G.houseX2, G.r1Y1+80, 'facade');
-  addGlassZone(G.houseX2-8, G.r1Y1+100, G.houseX2, G.r1Y1+150, 'facade');
-  addGlassZone(G.verX1+2, G.verY1, G.verX2-2, G.verY1+70, 'veranda_glass');
-  addGlassZone(G.verX2-10, G.verY1+70, G.verX2, G.verY2-10, 'veranda_glass');
-  addGlassZone(240, G.r1Y1-8, 290, G.r1Y1, 'velux_r2');
-  addGlassZone(100, 0, 170, 8, 'velux_r2_big');
-  addGlassZone(540, 0, 620, 8, 'velux_r2_big');
-  addGlassZone(0, G.basY1+30, 12, G.basY1+90, 'cave_door');
-  addGlassZone(G.houseX2-12, G.basY1+30, G.houseX2, G.basY1+90, 'cave_door');
-
-  buildWallGrid();
+// ─── GEOMETRY BUILDERS ────────────────────────────────────────────────────────
+function addWall(x1, y1, x2, y2, type, openingId = null) {
+  walls.push({ x1, y1, x2, y2, type, openingId });
 }
-
-function addWall(x1,y1,x2,y2,type){
-  walls.push({x1,y1,x2,y2,type});
-}
-
-function addWallSegmented(ax1,ay1,ax2,ay2,type,axis,gaps){
-  const isVert = (ax1===ax2);
+function addWallSeg(ax1, ay1, ax2, ay2, type, gaps) {
+  const isVert = ax1 === ax2;
   let prev = isVert ? ay1 : ax1;
   const end = isVert ? ay2 : ax2;
-  for(const [gs,ge] of gaps){
-    if(prev < gs){
-      if(isVert) addWall(ax1,prev,ax2,gs,type);
-      else       addWall(prev,ay1,gs,ay2,type);
-    }
+  for (const [gs, ge] of gaps) {
+    if (prev < gs) isVert ? addWall(ax1, prev, ax2, gs, type) : addWall(prev, ay1, gs, ay2, type);
     prev = ge;
   }
-  if(prev < end){
-    if(isVert) addWall(ax1,prev,ax2,end,type);
-    else       addWall(prev,ay1,end,ay2,type);
+  if (prev < end) isVert ? addWall(ax1, prev, ax2, end, type) : addWall(prev, ay1, end, ay2, type);
+}
+function addRadiator(x, y, w, h, zone) {
+  radiators.push({ x, y, w, h, zone, cx: x + w / 2, cy: y + h / 2 });
+}
+
+function defineOpening(id, label, zone, type, wallSegs, draftZones, glassZones, sx, sy, init = false) {
+  const op = { id, label, zone, type, wallSegs, draftZones, glassZones, simX: sx, simY: sy, isOpen: init };
+  openings.push(op);
+  for (const gz of glassZones) {
+    heatZones.push({ x1: gz.x1, y1: gz.y1, x2: gz.x2, y2: gz.y2, type: 'glass', key: gz.key, openingId: id });
   }
 }
 
-function addRadiator(x,y,w,h,zone){
-  radiators.push({x,y,w,h,zone,cx:x+w/2,cy:y+h/2});
+function rebuildOpenWallSet() {
+  openWallIds.clear();
+  for (const op of openings) if (op.isOpen) openWallIds.add(op.id);
 }
 
-function addGlassZone(x1,y1,x2,y2,key){
-  heatZones.push({x1,y1,x2,y2,type:'glass',key});
+// ─── BUILD GEOMETRY ───────────────────────────────────────────────────────────
+function buildGeometry() {
+  walls = []; openings = []; radiators = []; heatZones = [];
+  const { basY1, basY2, rdcY1, rdcY2, r1Y1, r1Y2, r2Y1, houseX2, verX1, verX2, verY1, verY2 } = G;
+  const DF = DRAFT_FORCE;
+
+  // ── BASEMENT OUTER WALLS ─────────────────────────────────────────────────
+  // SW (x=0): cave SW door y=basY1+30..+90
+  addWall(0, basY1, 0, basY1 + 30, 'wall');
+  addWall(0, basY1 + 30, 0, basY1 + 90, 'wall', 'cave_sw');
+  addWall(0, basY1 + 90, 0, basY2, 'wall');
+  // NE (x=700): cave NE door
+  addWall(houseX2, basY1, houseX2, basY1 + 30, 'wall');
+  addWall(houseX2, basY1 + 30, houseX2, basY1 + 90, 'wall', 'cave_ne');
+  addWall(houseX2, basY1 + 90, houseX2, basY2, 'wall');
+  // Floor (ground)
+  addWall(0, basY2, houseX2, basY2, 'ground');
+
+  // ── RDC OUTER WALLS ───────────────────────────────────────────────────────
+  // SW (x=0): toilet window (small high), kitchen window, entry door (low)
+  addWall(0, rdcY1, 0, rdcY1 + 35, 'wall');
+  addWall(0, rdcY1 + 35, 0, rdcY1 + 75, 'glass', 'toilet_win');
+  addWall(0, rdcY1 + 75, 0, rdcY1 + 120, 'wall');
+  addWall(0, rdcY1 + 120, 0, rdcY1 + 170, 'glass', 'kitchen_win');
+  addWall(0, rdcY1 + 170, 0, rdcY2 - 75, 'wall');
+  addWall(0, rdcY2 - 75, 0, rdcY2 - 8, 'wall', 'entry_door');
+  addWall(0, rdcY2 - 8, 0, rdcY2, 'wall');
+  // NE (x=700): salon window
+  addWall(houseX2, rdcY1, houseX2, rdcY1 + 28, 'wall');
+  addWall(houseX2, rdcY1 + 28, houseX2, rdcY1 + 78, 'glass', 'salon_win');
+  addWall(houseX2, rdcY1 + 78, houseX2, rdcY2, 'wall');
+
+  // ── R+1 OUTER WALLS ───────────────────────────────────────────────────────
+  // SW (x=0): 2 baby room windows
+  addWall(0, r1Y1, 0, r1Y1 + 25, 'wall');
+  addWall(0, r1Y1 + 25, 0, r1Y1 + 72, 'glass', 'baby_win_l');
+  addWall(0, r1Y1 + 72, 0, r1Y1 + 105, 'wall');
+  addWall(0, r1Y1 + 105, 0, r1Y1 + 152, 'glass', 'baby_win_r');
+  addWall(0, r1Y1 + 152, 0, r1Y2, 'wall');
+  // NE (x=700): bathroom window + 2 parent room windows
+  addWall(houseX2, r1Y1, houseX2, r1Y1 + 28, 'wall');
+  addWall(houseX2, r1Y1 + 28, houseX2, r1Y1 + 68, 'glass', 'bath_win');
+  addWall(houseX2, r1Y1 + 68, houseX2, r1Y1 + 90, 'wall');
+  addWall(houseX2, r1Y1 + 90, houseX2, r1Y1 + 135, 'glass', 'parent_win_l');
+  addWall(houseX2, r1Y1 + 135, houseX2, r1Y1 + 158, 'wall');
+  addWall(houseX2, r1Y1 + 158, houseX2, r1Y2 - 12, 'glass', 'parent_win_r');
+  addWall(houseX2, r1Y2 - 12, houseX2, r1Y2, 'wall');
+
+  // ── ATTIC MANSARD SLOPES (with velux gaps) ────────────────────────────────
+  // Left slope (0,100)→(180,0): velux at t=0.38..0.68 → (68,62)→(122,32)
+  addWall(0, r1Y1, 68, 62, 'wall');
+  addWall(68, 62, 122, 32, 'glass', 'velux_left');
+  addWall(122, 32, 180, r2Y1, 'wall');
+  addWall(180, r2Y1, 520, r2Y1, 'wall'); // flat ridge
+  // Right slope (520,0)→(700,100): velux at t=0.32..0.62 → (578,32)→(632,62)
+  addWall(520, r2Y1, 578, 32, 'wall');
+  addWall(578, 32, 632, 62, 'glass', 'velux_right');
+  addWall(632, 62, houseX2, r1Y1, 'wall');
+
+  // ── HORIZONTAL FLOORS/CEILINGS ────────────────────────────────────────────
+  // RDC/BAS: staircase gap x=400-480
+  addWallSeg(0, rdcY2, houseX2, rdcY2, 'wall', [[400, 480]]);
+  // RDC ceiling / R1 floor: staircase up x=350-430
+  addWallSeg(0, rdcY1, houseX2, rdcY1, 'wall', [[350, 430]]);
+  // R1 ceiling / R2 floor: staircase up x=300-380
+  addWallSeg(0, r1Y1, houseX2, r1Y1, 'wall', [[300, 380]]);
+
+  // ── VERANDA ───────────────────────────────────────────────────────────────
+  // Sloped glass roof with velux_veranda in middle section
+  addWall(verX1, verY1, verX1 + 120, verY1 + 26, 'glass');
+  addWall(verX1 + 120, verY1 + 26, verX1 + 180, verY1 + 39, 'glass', 'veranda_velux');
+  addWall(verX1 + 180, verY1 + 39, verX2, verY1 + 65, 'glass');
+  // NE glass wall: veranda bay opening
+  addWall(verX2, verY1 + 65, verX2, verY1 + 75, 'glass');
+  addWall(verX2, verY1 + 75, verX2, verY2 - 18, 'glass', 'veranda_bay');
+  addWall(verX2, verY2 - 18, verX2, verY2, 'glass');
+  // Veranda floor + left wall
+  addWall(verX1, verY2, verX2, verY2, 'wall');
+  // Salon/Veranda dividing wall at x=700
+  addWall(verX1, rdcY1, verX1, rdcY1 + 22, 'wall');
+  addWall(verX1, rdcY1 + 22, verX1, rdcY1 + 62, 'glass', 'veranda_win');
+  addWall(verX1, rdcY1 + 62, verX1, rdcY1 + 73, 'wall');
+  addWall(verX1, rdcY1 + 73, verX1, rdcY1 + 163, 'wall', 'veranda_door');
+  addWall(verX1, rdcY1 + 163, verX1, verY2, 'wall');
+
+  // ── INTERNAL PARTITIONS ───────────────────────────────────────────────────
+  // RDC: Hallway/Kitchen x=200 with toggleable door
+  addWall(200, rdcY1, 200, rdcY1 + 58, 'wall');
+  addWall(200, rdcY1 + 58, 200, rdcY1 + 118, 'wall', 'hall_kitchen_door');
+  addWall(200, rdcY1 + 118, 200, rdcY2, 'wall');
+  // RDC: Kitchen/Salon half-wall + verriere (KEPT AS-IS per user request)
+  addWall(400, rdcY1 + 100, 400, rdcY2, 'wall');
+  addWall(400, rdcY1 + 20, 400, rdcY1 + 100, 'glass');
+  // RDC: Toilets
+  addWall(100, rdcY1 + 80, 200, rdcY1 + 80, 'wall');
+  addWall(100, rdcY1 + 80, 100, rdcY2, 'wall');
+  // R+1: Baby room x=230
+  addWall(230, r1Y1, 230, r1Y1 + 48, 'wall');
+  addWall(230, r1Y1 + 48, 230, r1Y1 + 108, 'wall', 'baby_door');
+  addWall(230, r1Y1 + 108, 230, r1Y2, 'wall');
+  // R+1: Bathroom x=480
+  addWall(480, r1Y1, 480, r1Y1 + 48, 'wall');
+  addWall(480, r1Y1 + 48, 480, r1Y1 + 108, 'wall', 'bath_door');
+  addWall(480, r1Y1 + 108, 480, r1Y2, 'wall');
+  // Basement: SAS x=200
+  addWall(200, basY1, 200, basY1 + 28, 'wall');
+  addWall(200, basY1 + 28, 200, basY1 + 88, 'wall', 'sas_door');
+  addWall(200, basY1 + 88, 200, basY2, 'wall');
+  // Basement: Atelier x=500
+  addWall(500, basY1, 500, basY1 + 28, 'wall');
+  addWall(500, basY1 + 28, 500, basY1 + 88, 'wall', 'atelier_door');
+  addWall(500, basY1 + 88, 500, basY2, 'wall');
+
+  // ── RADIATORS ─────────────────────────────────────────────────────────────
+  addRadiator(30, rdcY2 - 20, 60, 12, 'rdc');
+  addRadiator(270, rdcY2 - 20, 60, 12, 'rdc');
+  addRadiator(550, rdcY2 - 20, 60, 12, 'rdc');
+  addRadiator(verX1 + 10, verY2 - 20, 50, 10, 'veranda');
+  addRadiator(30, r1Y2 - 20, 55, 12, 'r1');
+  addRadiator(460, r1Y1 + 80, 12, 50, 'r1');
+  addRadiator(640, r1Y2 - 20, 55, 12, 'r1');
+  addRadiator(100, r2Y1 + 18, 55, 12, 'r2');
+  addRadiator(540, r2Y1 + 18, 55, 12, 'r2');
+
+  // ── ALWAYS-ON HEAT ZONES ──────────────────────────────────────────────────
+  // Basement ground
+  heatZones.push({ x1: 0, y1: basY2 - 18, x2: houseX2, y2: basY2, temp: 0.22, cond: 0.008, type: 'ground' });
+  // Veranda glass roof (always season-dependent, no openingId)
+  heatZones.push({ x1: verX1 + 2, y1: verY1, x2: verX2 - 2, y2: verY1 + 68, type: 'glass', key: 'veranda_glass', openingId: null });
+  heatZones.push({ x1: verX2 - 8, y1: verY1 + 68, x2: verX2, y2: verY2 - 8, type: 'glass', key: 'veranda_glass', openingId: null });
+
+  // ── OPENING REGISTRY ──────────────────────────────────────────────────────
+  // Basement doors (exterior)
+  defineOpening('cave_sw', 'Cave SW', 'basement', 'door',
+    [{ x1: 0, y1: basY1 + 30, x2: 0, y2: basY1 + 90 }],
+    [{ x1: 0, y1: basY1 + 30, x2: 45, y2: basY1 + 90, fx: DF * 0.3, fy: 0 }],
+    [{ x1: 0, y1: basY1 + 30, x2: 12, y2: basY1 + 90, key: 'ext_door' }], 0, basY1 + 60);
+
+  defineOpening('cave_ne', 'Cave NE', 'basement', 'door',
+    [{ x1: houseX2, y1: basY1 + 30, x2: houseX2, y2: basY1 + 90 }],
+    [{ x1: houseX2 - 45, y1: basY1 + 30, x2: houseX2, y2: basY1 + 90, fx: DF * 0.15, fy: 0 }],
+    [{ x1: houseX2 - 12, y1: basY1 + 30, x2: houseX2, y2: basY1 + 90, key: 'ext_door' }], houseX2, basY1 + 60);
+
+  // Basement interior doors (start open)
+  defineOpening('sas_door', 'Porte SAS', 'basement', 'door',
+    [{ x1: 200, y1: basY1 + 28, x2: 200, y2: basY1 + 88 }],
+    [], [], 200, basY1 + 58, true);
+
+  defineOpening('atelier_door', 'Porte Atelier', 'basement', 'door',
+    [{ x1: 500, y1: basY1 + 28, x2: 500, y2: basY1 + 88 }],
+    [], [], 500, basY1 + 58, true);
+
+  // RDC exterior
+  defineOpening('entry_door', 'Entrée RDC', 'rdc', 'door',
+    [{ x1: 0, y1: rdcY2 - 75, x2: 0, y2: rdcY2 - 8 }],
+    [{ x1: 0, y1: rdcY2 - 75, x2: 50, y2: rdcY2 - 8, fx: DF * 0.2, fy: 0 }],
+    [{ x1: 0, y1: rdcY2 - 75, x2: 10, y2: rdcY2 - 8, key: 'ext_door' }], 0, rdcY2 - 40);
+
+  defineOpening('toilet_win', 'Fenêtre WC', 'rdc', 'window',
+    [{ x1: 0, y1: rdcY1 + 35, x2: 0, y2: rdcY1 + 75 }],
+    [{ x1: 0, y1: rdcY1 + 35, x2: 30, y2: rdcY1 + 75, fx: DF * 0.1, fy: 0 }],
+    [{ x1: 0, y1: rdcY1 + 35, x2: 8, y2: rdcY1 + 75, key: 'ext_win' }], 0, rdcY1 + 55);
+
+  defineOpening('kitchen_win', 'Fenêtre Cuisine', 'rdc', 'window',
+    [{ x1: 0, y1: rdcY1 + 120, x2: 0, y2: rdcY1 + 170 }],
+    [{ x1: 0, y1: rdcY1 + 120, x2: 40, y2: rdcY1 + 170, fx: DF * 0.18, fy: 0 }],
+    [{ x1: 0, y1: rdcY1 + 120, x2: 8, y2: rdcY1 + 170, key: 'ext_win' }], 0, rdcY1 + 145);
+
+  defineOpening('salon_win', 'Fenêtre Salon', 'rdc', 'window',
+    [{ x1: houseX2, y1: rdcY1 + 28, x2: houseX2, y2: rdcY1 + 78 }],
+    [{ x1: houseX2 - 40, y1: rdcY1 + 28, x2: houseX2, y2: rdcY1 + 78, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 8, y1: rdcY1 + 28, x2: houseX2, y2: rdcY1 + 78, key: 'ext_win' }], houseX2, rdcY1 + 53);
+
+  defineOpening('veranda_win', 'Vitre Salon/Véranda', 'rdc', 'window',
+    [{ x1: verX1, y1: rdcY1 + 22, x2: verX1, y2: rdcY1 + 62 }],
+    [{ x1: verX1 - 30, y1: rdcY1 + 22, x2: verX1 + 30, y2: rdcY1 + 62, fx: DF * 0.1, fy: 0 }],
+    [{ x1: verX1 - 4, y1: rdcY1 + 22, x2: verX1 + 4, y2: rdcY1 + 62, key: 'veranda_open' }], verX1, rdcY1 + 42);
+
+  defineOpening('veranda_door', 'Porte Française', 'rdc', 'door',
+    [{ x1: verX1, y1: rdcY1 + 73, x2: verX1, y2: rdcY1 + 163 }],
+    [{ x1: verX1 - 40, y1: rdcY1 + 73, x2: verX1 + 40, y2: rdcY1 + 163, fx: DF * 0.22 * (state.summer ? 1 : -0.3), fy: 0 }],
+    [{ x1: verX1 - 4, y1: rdcY1 + 73, x2: verX1 + 4, y2: rdcY1 + 163, key: 'veranda_open' }], verX1, rdcY1 + 118);
+
+  // RDC interior door (start open)
+  defineOpening('hall_kitchen_door', 'Porte Hall/Cuisine', 'rdc', 'door',
+    [{ x1: 200, y1: rdcY1 + 58, x2: 200, y2: rdcY1 + 118 }],
+    [], [], 200, rdcY1 + 88, true);
+
+  // Veranda
+  defineOpening('veranda_bay', 'Baie Véranda NE', 'veranda', 'baywindow',
+    [{ x1: verX2, y1: verY1 + 75, x2: verX2, y2: verY2 - 18 }],
+    [{ x1: verX2 - 50, y1: verY1 + 75, x2: verX2, y2: verY2 - 18, fx: DF * 0.2 * (state.summer ? 1 : -0.2), fy: 0 }],
+    [{ x1: verX2 - 8, y1: verY1 + 75, x2: verX2, y2: verY2 - 18, key: 'ext_win' }], verX2, (verY1 + verY2) / 2);
+
+  defineOpening('veranda_velux', 'Velux Véranda', 'veranda', 'velux',
+    [{ x1: verX1 + 120, y1: verY1 + 26, x2: verX1 + 180, y2: verY1 + 39 }],
+    [{ x1: verX1 + 80, y1: verY1, x2: verX1 + 220, y2: verY1 + 60, fx: 0, fy: -DF * 0.3 }],
+    [{ x1: verX1 + 120, y1: verY1 + 20, x2: verX1 + 180, y2: verY1 + 45, key: 'velux' }], verX1 + 150, verY1 + 32);
+
+  // R+1 windows
+  defineOpening('baby_win_l', 'Bébé Fenêtre G', 'r1', 'window',
+    [{ x1: 0, y1: r1Y1 + 25, x2: 0, y2: r1Y1 + 72 }],
+    [{ x1: 0, y1: r1Y1 + 25, x2: 35, y2: r1Y1 + 72, fx: DF * 0.18, fy: 0 }],
+    [{ x1: 0, y1: r1Y1 + 25, x2: 8, y2: r1Y1 + 72, key: 'ext_win' }], 0, r1Y1 + 48);
+
+  defineOpening('baby_win_r', 'Bébé Fenêtre D', 'r1', 'window',
+    [{ x1: 0, y1: r1Y1 + 105, x2: 0, y2: r1Y1 + 152 }],
+    [{ x1: 0, y1: r1Y1 + 105, x2: 35, y2: r1Y1 + 152, fx: DF * 0.18, fy: 0 }],
+    [{ x1: 0, y1: r1Y1 + 105, x2: 8, y2: r1Y1 + 152, key: 'ext_win' }], 0, r1Y1 + 128);
+
+  defineOpening('bath_win', 'SdB Fenêtre', 'r1', 'window',
+    [{ x1: houseX2, y1: r1Y1 + 28, x2: houseX2, y2: r1Y1 + 68 }],
+    [{ x1: houseX2 - 35, y1: r1Y1 + 28, x2: houseX2, y2: r1Y1 + 68, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 8, y1: r1Y1 + 28, x2: houseX2, y2: r1Y1 + 68, key: 'ext_win' }], houseX2, r1Y1 + 48);
+
+  defineOpening('parent_win_l', 'Parents Fenêtre G', 'r1', 'window',
+    [{ x1: houseX2, y1: r1Y1 + 90, x2: houseX2, y2: r1Y1 + 135 }],
+    [{ x1: houseX2 - 35, y1: r1Y1 + 90, x2: houseX2, y2: r1Y1 + 135, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 8, y1: r1Y1 + 90, x2: houseX2, y2: r1Y1 + 135, key: 'ext_win' }], houseX2, r1Y1 + 112);
+
+  defineOpening('parent_win_r', 'Parents Fenêtre D', 'r1', 'window',
+    [{ x1: houseX2, y1: r1Y1 + 158, x2: houseX2, y2: r1Y2 - 12 }],
+    [{ x1: houseX2 - 35, y1: r1Y1 + 158, x2: houseX2, y2: r1Y2 - 12, fx: DF * 0.18, fy: 0 }],
+    [{ x1: houseX2 - 8, y1: r1Y1 + 158, x2: houseX2, y2: r1Y2 - 12, key: 'ext_win' }], houseX2, r1Y1 + 178);
+
+  // R+1 interior doors (start open)
+  defineOpening('baby_door', 'Porte Bébé', 'r1', 'door',
+    [{ x1: 230, y1: r1Y1 + 48, x2: 230, y2: r1Y1 + 108 }],
+    [], [], 230, r1Y1 + 78, true);
+
+  defineOpening('bath_door', 'Porte SdB', 'r1', 'door',
+    [{ x1: 480, y1: r1Y1 + 48, x2: 480, y2: r1Y1 + 108 }],
+    [], [], 480, r1Y1 + 78, true);
+
+  // R+2 velux
+  defineOpening('velux_left', 'Velux R+2 G', 'r2', 'velux',
+    [{ x1: 68, y1: 62, x2: 122, y2: 32 }],
+    [{ x1: 60, y1: 20, x2: 130, y2: 80, fx: 0, fy: -DF * 0.35 }],
+    [{ x1: 60, y1: 25, x2: 130, y2: 70, key: 'velux' }], 95, 47);
+
+  defineOpening('velux_right', 'Velux R+2 D', 'r2', 'velux',
+    [{ x1: 578, y1: 32, x2: 632, y2: 62 }],
+    [{ x1: 560, y1: 20, x2: 640, y2: 80, fx: 0, fy: -DF * 0.35 }],
+    [{ x1: 560, y1: 25, x2: 640, y2: 70, key: 'velux' }], 605, 47);
+
+  defineOpening('velux_landing', 'Velux Palier R+2', 'r2', 'velux',
+    [],
+    [{ x1: 280, y1: 0, x2: 370, y2: 40, fx: 0, fy: -DF * 0.25 }],
+    [{ x1: 280, y1: 0, x2: 370, y2: 12, key: 'velux' }], 325, 5);
+
+  buildWallGrid();
+  rebuildOpenWallSet();
+  buildOpeningsUI();
 }
 
-function buildWallGrid(){
-  gridW = SIM_W / GRID_COLS;
-  gridH = SIM_H / GRID_ROWS;
-  wallGrid = new Array(GRID_COLS * GRID_ROWS).fill(null).map(()=>[]);
-  for(let i=0;i<walls.length;i++){
-    const w=walls[i];
-    const minC=Math.max(0,Math.floor(Math.min(w.x1,w.x2)/gridW)-1);
-    const maxC=Math.min(GRID_COLS-1,Math.ceil(Math.max(w.x1,w.x2)/gridW)+1);
-    const minR=Math.max(0,Math.floor(Math.min(w.y1,w.y2)/gridH)-1);
-    const maxR=Math.min(GRID_ROWS-1,Math.ceil(Math.max(w.y1,w.y2)/gridH)+1);
-    for(let r=minR;r<=maxR;r++){
-      for(let c=minC;c<=maxC;c++){
-        wallGrid[r*GRID_COLS+c].push(i);
-      }
-    }
+// ─── WALL GRID ─────────────────────────────────────────────────────────────────
+function buildWallGrid() {
+  gridW = SIM_W / GRID_COLS; gridH = SIM_H / GRID_ROWS;
+  wallGrid = Array.from({ length: GRID_COLS * GRID_ROWS }, () => []);
+  for (let i = 0; i < walls.length; i++) {
+    const w = walls[i];
+    const c0 = Math.max(0, Math.floor(Math.min(w.x1, w.x2) / gridW) - 1);
+    const c1 = Math.min(GRID_COLS - 1, Math.ceil(Math.max(w.x1, w.x2) / gridW) + 1);
+    const r0 = Math.max(0, Math.floor(Math.min(w.y1, w.y2) / gridH) - 1);
+    const r1 = Math.min(GRID_ROWS - 1, Math.ceil(Math.max(w.y1, w.y2) / gridH) + 1);
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) wallGrid[r * GRID_COLS + c].push(i);
   }
 }
-
-function getWallsNear(x,y){
-  const c=Math.min(GRID_COLS-1,Math.max(0,Math.floor(x/gridW)));
-  const r=Math.min(GRID_ROWS-1,Math.max(0,Math.floor(y/gridH)));
-  return wallGrid[r*GRID_COLS+c];
+function getWallsNear(x, y) {
+  const c = Math.min(GRID_COLS - 1, Math.max(0, (x / gridW) | 0));
+  const r = Math.min(GRID_ROWS - 1, Math.max(0, (y / gridH) | 0));
+  return wallGrid[r * GRID_COLS + c];
 }
 
+// ─── PARTICLE SYSTEM ──────────────────────────────────────────────────────────
 const MAX_P = 1600;
-const px = new Float32Array(MAX_P);
-const py = new Float32Array(MAX_P);
-const pvx= new Float32Array(MAX_P);
-const pvy= new Float32Array(MAX_P);
+const px = new Float32Array(MAX_P), py = new Float32Array(MAX_P);
+const pvx = new Float32Array(MAX_P), pvy = new Float32Array(MAX_P);
 const pt = new Float32Array(MAX_P);
 let N = 0;
 
-const PARTICLE_R = 3.0;
-const DRAG = 0.97;
-const THERMAL_NOISE = 0.25;
-const BUOY_FORCE = 0.04;
-const HEAT_RADIUS = 30;
-const HEAT_RATE = 0.012;
-const COOL_RATE = 0.004;
-const CONDUCT_RATE = 0.0008;
-const DRAFT_FORCE = 0.6;
+const PARTICLE_R = 3.0, DRAG = 0.97, THERMAL_NOISE = 0.25;
+const BUOY_FORCE = 0.04, HEAT_RADIUS = 30, HEAT_RATE = 0.012;
+const CONDUCT_RATE = 0.0008, DRAFT_FORCE = 0.6;
 
-function spawnParticles(){
+function spawnParticles() {
   N = 0;
+  const { basY1, basY2, rdcY1, rdcY2, r1Y1, r1Y2, r2Y1, houseX2, verX1, verX2, verY1, verY2 } = G;
   const regions = [
-    ['bas_l',    5, G.basY1+5, 195, G.basY2-5, 120, 0.22],
-    ['bas_c',  205, G.basY1+5, 495, G.basY2-5, 150, 0.22],
-    ['bas_r',  505, G.basY1+5, 695, G.basY2-5, 120, 0.22],
-    ['rdc_hall', 5, G.rdcY1+5, 195, G.rdcY2-5, 120, 0.35],
-    ['rdc_kit', 210, G.rdcY1+5, 390, G.rdcY2-5, 130, 0.38],
-    ['rdc_sal', 405, G.rdcY1+5, 695, G.rdcY2-5, 160, 0.38],
-    ['ver',    G.verX1+5, G.verY1+5, G.verX2-5, G.verY2-5, 100, 0.30],
-    ['r1_baby',  5, G.r1Y1+5, 225, G.r1Y2-5, 120, 0.38],
-    ['r1_bath',235, G.r1Y1+5, 475, G.r1Y2-5, 120, 0.35],
-    ['r1_par', 485, G.r1Y1+5, 695, G.r1Y2-5, 130, 0.38],
-    ['r2_l',   190, G.r2Y1+5, 295, G.r1Y1-5, 80, 0.30],
-    ['r2_c',   200, G.r2Y1+5, 510, G.r1Y1-5, 120, 0.28],
-    ['r2_r',   385, G.r2Y1+5, 695, G.r1Y1-5, 90, 0.28],
+    [5, basY1 + 5, 195, basY2 - 5, 110, 0.22], [205, basY1 + 5, 495, basY2 - 5, 140, 0.22],
+    [505, basY1 + 5, houseX2 - 5, basY2 - 5, 110, 0.22],
+    [5, rdcY1 + 5, 195, rdcY2 - 5, 110, 0.35], [210, rdcY1 + 5, 390, rdcY2 - 5, 120, 0.38],
+    [410, rdcY1 + 5, houseX2 - 5, rdcY2 - 5, 150, 0.38],
+    [verX1 + 5, verY1 + 5, verX2 - 5, verY2 - 5, 90, 0.30],
+    [5, r1Y1 + 5, 225, r1Y2 - 5, 110, 0.38], [235, r1Y1 + 5, 475, r1Y2 - 5, 110, 0.35],
+    [485, r1Y1 + 5, houseX2 - 5, r1Y2 - 5, 120, 0.38],
+    [185, r2Y1 + 5, 510, r1Y1 - 5, 130, 0.28],
   ];
-  for(const [,x1,y1,x2,y2,cnt,temp] of regions){
-    for(let i=0;i<cnt && N<MAX_P;i++){
-      px[N] = x1 + Math.random()*(x2-x1);
-      py[N] = y1 + Math.random()*(y2-y1);
-      pvx[N]= (Math.random()-.5)*0.5;
-      pvy[N]= (Math.random()-.5)*0.5;
-      pt[N] = temp + (Math.random()-.5)*0.1;
+  for (const [x1, y1, x2, y2, cnt, temp] of regions) {
+    for (let i = 0; i < cnt && N < MAX_P; i++) {
+      px[N] = x1 + Math.random() * (x2 - x1); py[N] = y1 + Math.random() * (y2 - y1);
+      pvx[N] = (Math.random() - .5) * 0.5; pvy[N] = (Math.random() - .5) * 0.5;
+      pt[N] = Math.max(0, Math.min(1, temp + (Math.random() - .5) * 0.1));
       N++;
     }
   }
 }
 
-function segDistSq(px,py,ax,ay,bx,by){
-  const dx=bx-ax, dy=by-ay;
-  const lenSq=dx*dx+dy*dy;
-  if(lenSq===0) return (px-ax)**2+(py-ay)**2;
-  let t=((px-ax)*dx+(py-ay)*dy)/lenSq;
-  t=Math.max(0,Math.min(1,t));
-  const cx=ax+t*dx, cy=ay+t*dy;
-  return (px-cx)**2+(py-cy)**2;
+// ─── COLLISION ─────────────────────────────────────────────────────────────────
+function segDistSq(qx, qy, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  if (l2 === 0) return (qx - ax) ** 2 + (qy - ay) ** 2;
+  const t = Math.max(0, Math.min(1, ((qx - ax) * dx + (qy - ay) * dy) / l2));
+  return (qx - ax - t * dx) ** 2 + (qy - ay - t * dy) ** 2;
+}
+function reflectOffWall(i, wx1, wy1, wx2, wy2) {
+  const dx = wx2 - wx1, dy = wy2 - wy1, len = Math.sqrt(dx * dx + dy * dy);
+  if (len < .001) return;
+  const nx = -dy / len, ny = dx / len, dot = pvx[i] * nx + pvy[i] * ny;
+  if (dot < 0) { pvx[i] -= 2 * dot * nx; pvy[i] -= 2 * dot * ny; pvx[i] *= 0.6; pvy[i] *= 0.6; }
+  const t = Math.max(0, Math.min(1, ((px[i] - wx1) * dx + (py[i] - wy1) * dy) / (dx * dx + dy * dy)));
+  const cx = wx1 + t * dx, cy = wy1 + t * dy;
+  const ddx = px[i] - cx, ddy = py[i] - cy, dist = Math.sqrt(ddx * ddx + ddy * ddy);
+  if (dist < PARTICLE_R && dist > .001) { px[i] += ddx * (PARTICLE_R - dist) / dist; py[i] += ddy * (PARTICLE_R - dist) / dist; }
 }
 
-function reflectOffWall(i, wx1,wy1,wx2,wy2){
-  const dx=wx2-wx1, dy=wy2-wy1;
-  const len=Math.sqrt(dx*dx+dy*dy);
-  if(len<.001) return;
-  const nx=-dy/len, ny=dx/len;
-  const dot=pvx[i]*nx+pvy[i]*ny;
-  if(dot<0){
-    pvx[i]-=2*dot*nx;
-    pvy[i]-=2*dot*ny;
-    pvx[i]*=0.6;
-    pvy[i]*=0.6;
-  }
-  const px2=px[i], py2=py[i];
-  const t2=((px2-wx1)*dx+(py2-wy1)*dy)/(dx*dx+dy*dy);
-  const tc=Math.max(0,Math.min(1,t2));
-  const cx=wx1+tc*dx, cy=wy1+tc*dy;
-  const distX=px2-cx, distY=py2-cy;
-  const dist=Math.sqrt(distX*distX+distY*distY);
-  if(dist<PARTICLE_R && dist>0.001){
-    const push=(PARTICLE_R-dist)/dist;
-    px[i]+=distX*push;
-    py[i]+=distY*push;
-  }
+// ─── TEMPERATURE ───────────────────────────────────────────────────────────────
+function toCelsius(t) { return t * 50; }
+function fromCelsius(c) { return c / 50; }
+function tempColor(t) {
+  t = Math.max(0, Math.min(1, t));
+  if (t < 0.33) { const f = t / 0.33; return `rgb(${(68 + f * (34 - 68)) | 0},${(f * 197) | 0},${(255 + f * (94 - 255)) | 0})`; }
+  if (t < 0.55) { const f = (t - 0.33) / 0.22; return `rgb(${(34 + f * 215) | 0},${(197 - f * 82) | 0},${(94 - f * 72) | 0})`; }
+  const f = (t - 0.55) / 0.45; return `rgb(${(249 - f * 10) | 0},${(115 - f * 47) | 0},${(22 + f * 46) | 0})`;
 }
+const COLOR_LUT = Array.from({ length: 256 }, (_, i) => tempColor(i / 255));
+function colorIdx(t) { return Math.round(Math.max(0, Math.min(1, t)) * 255); }
 
-function toCelsius(t){ return t*50; }
-function fromCelsius(c){ return c/50; }
-
-function tempColor(t){
-  t = Math.max(0,Math.min(1,t));
-  if(t<0.33){
-    const f=t/0.33;
-    return `rgb(${Math.round(68+f*(34-68))},${Math.round(f*197)},${Math.round(255+f*(94-255))})`;
-  } else if(t<0.55){
-    const f=(t-0.33)/0.22;
-    return `rgb(${Math.round(34+f*(249-34))},${Math.round(197+f*(115-197))},${Math.round(94+f*(22-94))})`;
-  } else {
-    const f=(t-0.55)/0.45;
-    return `rgb(${Math.round(249+f*(239-249))},${Math.round(115+f*(68-115))},${Math.round(22+f*(68-22))})`;
-  }
-}
-
-const COLOR_LUT = new Array(256);
-for(let i=0;i<256;i++) COLOR_LUT[i]=tempColor(i/255);
-
-function colorIdx(t){ return Math.round(Math.max(0,Math.min(1,t))*255); }
-
-let lastTime = 0;
-let fps = 60;
-let fpsTime = 0;
-let fpsCount = 0;
-
-function getDraftForce(x,y){
-  let fx=0, fy=0;
-  if(state.cave){
-    if(y>G.basY1 && y<G.basY2 && x<300){ fx += DRAFT_FORCE * 0.3; }
-    if(y>G.basY1 && y<G.basY2 && x>450){ fx += DRAFT_FORCE * 0.15; }
-  }
-  if(state.veranda){
-    if(x>580 && x<760 && y>G.rdcY1 && y<G.rdcY2){
-      fx += DRAFT_FORCE * 0.2 * (state.summer ? 1 : -0.3);
+// ─── PHYSICS ───────────────────────────────────────────────────────────────────
+function getDraftForce(x, y) {
+  let fx = 0, fy = 0;
+  for (const op of openings) {
+    if (!op.isOpen) continue;
+    for (const dz of op.draftZones) {
+      if (x >= dz.x1 && x <= dz.x2 && y >= dz.y1 && y <= dz.y2) { fx += dz.fx; fy += dz.fy; }
     }
   }
-  if(state.velux){
-    if(x>80 && x<200 && y<G.r1Y1+20 && y>G.r2Y1){ fy -= DRAFT_FORCE * 0.35; }
-    if(x>530 && x<640 && y<G.r1Y1+20 && y>G.r2Y1){ fy -= DRAFT_FORCE * 0.35; }
+  for (const fan of fans) {
+    if (!fan.active) continue;
+    const dx = x - fan.x, dy = y - fan.y, dist = Math.hypot(dx, dy);
+    if (dist > 65) continue;
+    const cos = (dx * Math.cos(fan.angle) + dy * Math.sin(fan.angle)) / Math.max(dist, 0.1);
+    if (cos < 0.707) continue;
+    const mag = fan.strength * DRAFT_FORCE * 1.2 * cos * (1 - dist / 65);
+    fx += Math.cos(fan.angle) * mag; fy += Math.sin(fan.angle) * mag;
   }
-  if(state.facade){
-    if(y>G.rdcY1 && y<G.rdcY2){ fx += DRAFT_FORCE * 0.25; }
-    if(y>G.r1Y1 && y<G.r1Y2){ fx += DRAFT_FORCE * 0.25; }
-  }
-  return {fx,fy};
+  return { fx, fy };
 }
 
-function applyHeatZone(i, hz){
-  if(px[i]>=hz.x1-2 && px[i]<=hz.x2+2 && py[i]>=hz.y1-2 && py[i]<=hz.y2+2){
-    if(hz.type==='ground'){
-      pt[i] += (hz.temp - pt[i]) * hz.cond;
-    } else if(hz.type==='glass'){
-      let target, rate;
-      if(hz.key==='veranda_glass'){
-        target = state.summer ? 0.85 : fromCelsius(2);
-        rate = state.summer ? 0.006 : 0.008;
-      } else if(hz.key==='cave_door'){
-        target = state.summer ? fromCelsius(20) : fromCelsius(5);
-        rate = state.cave ? 0.01 : 0.003;
-      } else if(hz.key.startsWith('velux_r2')){
-        target = state.summer ? fromCelsius(35) : fromCelsius(3);
-        rate = state.velux ? 0.012 : 0.004;
-      } else {
-        target = state.summer ? fromCelsius(28) : fromCelsius(2);
-        rate = state.facade ? 0.015 : 0.005;
-      }
-      pt[i] += (target - pt[i]) * rate;
-    }
+function applyHeatZone(i, hz) {
+  if (px[i] < hz.x1 - 2 || px[i] > hz.x2 + 2 || py[i] < hz.y1 - 2 || py[i] > hz.y2 + 2) return;
+  if (hz.type === 'ground') { pt[i] += (hz.temp - pt[i]) * hz.cond; return; }
+  if (hz.type !== 'glass') return;
+  const S = state.summer, isOpen = hz.openingId ? openWallIds.has(hz.openingId) : false;
+  let target, rate;
+  switch (hz.key) {
+    case 'ext_win':   target = S ? fromCelsius(28) : fromCelsius(2); rate = isOpen ? 0.022 : 0.005; break;
+    case 'ext_door':  target = S ? fromCelsius(25) : fromCelsius(0); rate = isOpen ? 0.028 : 0.003; break;
+    case 'velux':     target = S ? fromCelsius(38) : fromCelsius(3); rate = isOpen ? 0.018 : 0.004; break;
+    case 'veranda_open': target = S ? fromCelsius(32) : fromCelsius(6); rate = isOpen ? 0.020 : 0.006; break;
+    case 'veranda_glass': target = S ? 0.85 : fromCelsius(2); rate = S ? 0.008 : 0.007; break;
+    default: target = S ? fromCelsius(28) : fromCelsius(2); rate = 0.004;
   }
+  pt[i] += (target - pt[i]) * rate;
 }
 
-function step(dt){
-  const steps = state.speed ? 3 : 1;
-  for(let s=0;s<steps;s++) stepOnce(dt);
-}
+function step(dt) { const n = state.speed ? 3 : 1; for (let s = 0; s < n; s++) stepOnce(dt); }
 
-function stepOnce(dt){
-  const extTempCold = fromCelsius(state.summer ? 28 : -2);
-  const extTempHot  = fromCelsius(state.summer ? 38 : 5);
-  const radTemp = state.heat ? 0.92 : 0.0;
-
-  for(let i=0;i<N;i++){
-    const buoy = (pt[i]-0.5)*BUOY_FORCE;
-    pvy[i] -= buoy;
-    pvx[i] += (Math.random()-.5)*THERMAL_NOISE;
-    pvy[i] += (Math.random()-.5)*THERMAL_NOISE;
+function stepOnce(dt) {
+  const extT = state.summer ? fromCelsius(28) : fromCelsius(-2);
+  const radT = state.heat ? 0.92 : 0.0;
+  for (let i = 0; i < N; i++) {
+    pvy[i] -= (pt[i] - 0.5) * BUOY_FORCE;
+    pvx[i] += (Math.random() - .5) * THERMAL_NOISE; pvy[i] += (Math.random() - .5) * THERMAL_NOISE;
     const d = getDraftForce(px[i], py[i]);
-    pvx[i] += d.fx * dt;
-    pvy[i] += d.fy * dt;
-    pvx[i] *= DRAG;
-    pvy[i] *= DRAG;
-    px[i] += pvx[i];
-    py[i] += pvy[i];
-
-    const isInVeranda = px[i]>G.verX1 && px[i]<G.verX2 && py[i]>G.verY1 && py[i]<G.verY2;
-    if(!isInVeranda){
-      if(px[i]<PARTICLE_R){ px[i]=PARTICLE_R; pvx[i]=Math.abs(pvx[i])*0.5; }
-      if(px[i]>G.houseX2-PARTICLE_R){ px[i]=G.houseX2-PARTICLE_R; pvx[i]=-Math.abs(pvx[i])*0.5; }
+    pvx[i] += d.fx * dt; pvy[i] += d.fy * dt;
+    pvx[i] *= DRAG; pvy[i] *= DRAG;
+    px[i] += pvx[i]; py[i] += pvy[i];
+    // Bounds
+    const inV = px[i] > G.verX1 && px[i] < G.verX2 && py[i] > G.verY1 && py[i] < G.verY2;
+    if (!inV) {
+      if (px[i] < PARTICLE_R) { px[i] = PARTICLE_R; pvx[i] = Math.abs(pvx[i]) * .5; }
+      if (px[i] > G.houseX2 - PARTICLE_R) { px[i] = G.houseX2 - PARTICLE_R; pvx[i] = -Math.abs(pvx[i]) * .5; }
     } else {
-      if(px[i]<G.verX1+PARTICLE_R){ px[i]=G.verX1+PARTICLE_R; pvx[i]=Math.abs(pvx[i])*0.5; }
-      if(px[i]>G.verX2-PARTICLE_R){ px[i]=G.verX2-PARTICLE_R; pvx[i]=-Math.abs(pvx[i])*0.5; }
+      if (px[i] < G.verX1 + PARTICLE_R) { px[i] = G.verX1 + PARTICLE_R; pvx[i] = Math.abs(pvx[i]) * .5; }
+      if (px[i] > G.verX2 - PARTICLE_R) { px[i] = G.verX2 - PARTICLE_R; pvx[i] = -Math.abs(pvx[i]) * .5; }
     }
-    if(py[i]<PARTICLE_R){ py[i]=PARTICLE_R; pvy[i]=Math.abs(pvy[i])*0.5; }
-    if(py[i]>SIM_H-PARTICLE_R){ py[i]=SIM_H-PARTICLE_R; pvy[i]=-Math.abs(pvy[i])*0.5; }
-
-    const nearWalls = getWallsNear(px[i], py[i]);
-    for(const wi of nearWalls){
-      const w=walls[wi];
-      const d2=segDistSq(px[i],py[i],w.x1,w.y1,w.x2,w.y2);
-      if(d2 < PARTICLE_R*PARTICLE_R){ reflectOffWall(i, w.x1,w.y1,w.x2,w.y2); }
+    if (py[i] < PARTICLE_R) { py[i] = PARTICLE_R; pvy[i] = Math.abs(pvy[i]) * .5; }
+    if (py[i] > SIM_H - PARTICLE_R) { py[i] = SIM_H - PARTICLE_R; pvy[i] = -Math.abs(pvy[i]) * .5; }
+    // Wall collisions
+    const nw = getWallsNear(px[i], py[i]);
+    for (const wi of nw) {
+      const w = walls[wi];
+      if (w.openingId && openWallIds.has(w.openingId)) continue;
+      if (segDistSq(px[i], py[i], w.x1, w.y1, w.x2, w.y2) < PARTICLE_R * PARTICLE_R)
+        reflectOffWall(i, w.x1, w.y1, w.x2, w.y2);
     }
-
-    if(state.heat){
-      for(const rad of radiators){
-        const rdx=px[i]-rad.cx, rdy=py[i]-rad.cy;
-        const rd2=rdx*rdx+rdy*rdy;
-        if(rd2 < HEAT_RADIUS*HEAT_RADIUS){
-          const factor=1-(Math.sqrt(rd2)/HEAT_RADIUS);
-          pt[i] += (radTemp-pt[i])*HEAT_RATE*factor;
-          pvy[i] -= factor*0.15;
+    // Radiator heat
+    if (state.heat) {
+      for (const rad of radiators) {
+        const rd2 = (px[i] - rad.cx) ** 2 + (py[i] - rad.cy) ** 2;
+        if (rd2 < HEAT_RADIUS * HEAT_RADIUS) {
+          const f = 1 - Math.sqrt(rd2) / HEAT_RADIUS;
+          pt[i] += (radT - pt[i]) * HEAT_RATE * f;
+          pvy[i] -= f * 0.15;
         }
       }
     }
-
-    for(const hz of heatZones){ applyHeatZone(i, hz); }
-
-    const nearOuter = (px[i]<10 || px[i]>G.houseX2-10 || py[i]<6);
-    if(nearOuter){
-      const target = state.summer ? extTempHot : extTempCold;
-      pt[i] += (target-pt[i])*0.003;
-    }
+    // Glass / ground zones
+    for (const hz of heatZones) applyHeatZone(i, hz);
+    // Passive outer wall cooling
+    if (px[i] < 10 || px[i] > G.houseX2 - 10 || py[i] < 6)
+      pt[i] += (extT - pt[i]) * 0.003;
     pt[i] = Math.max(0, Math.min(1, pt[i]));
   }
-
-  const checks = Math.min(N*2, 1200);
-  for(let k=0;k<checks;k++){
-    const a=(Math.random()*N)|0;
-    const b=(Math.random()*N)|0;
-    if(a===b) continue;
-    const dx=px[a]-px[b], dy=py[a]-py[b];
-    if(Math.abs(dx)>12||Math.abs(dy)>12) continue;
-    const d2=dx*dx+dy*dy;
-    if(d2<36){
-      const diff=pt[a]-pt[b];
-      pt[a]-=diff*CONDUCT_RATE;
-      pt[b]+=diff*CONDUCT_RATE;
+  // Particle-particle conduction
+  const checks = Math.min(N * 2, 1200);
+  for (let k = 0; k < checks; k++) {
+    const a = (Math.random() * N) | 0, b = (Math.random() * N) | 0;
+    if (a === b) continue;
+    if (Math.abs(px[a] - px[b]) > 12 || Math.abs(py[a] - py[b]) > 12) continue;
+    if ((px[a] - px[b]) ** 2 + (py[a] - py[b]) ** 2 < 36) {
+      const diff = pt[a] - pt[b]; pt[a] -= diff * CONDUCT_RATE; pt[b] += diff * CONDUCT_RATE;
     }
   }
 }
 
-let heatmapCanvas = null;
-let heatmapCtx = null;
-const HMAP_W = 100, HMAP_H = 70;
-const heatmapData = new Float32Array(HMAP_W*HMAP_H);
-const heatmapCount= new Uint16Array(HMAP_W*HMAP_H);
+// ─── RENDERING ─────────────────────────────────────────────────────────────────
+let hmCanvas = null, hmCtx = null;
+const HW = 100, HH = 70;
+const hmData = new Float32Array(HW * HH), hmCnt = new Uint16Array(HW * HH);
 
-function buildHeatmap(){
-  heatmapData.fill(0);
-  heatmapCount.fill(0);
-  const scX=HMAP_W/SIM_W, scY=HMAP_H/SIM_H;
-  for(let i=0;i<N;i++){
-    const c=Math.min(HMAP_W-1,(px[i]*scX)|0);
-    const r=Math.min(HMAP_H-1,(py[i]*scY)|0);
-    const idx=r*HMAP_W+c;
-    heatmapData[idx]+=pt[i];
-    heatmapCount[idx]++;
+function buildHeatmap() {
+  hmData.fill(0); hmCnt.fill(0);
+  const sx = HW / SIM_W, sy = HH / SIM_H;
+  for (let i = 0; i < N; i++) {
+    const c = Math.min(HW - 1, (px[i] * sx) | 0), r = Math.min(HH - 1, (py[i] * sy) | 0);
+    hmData[r * HW + c] += pt[i]; hmCnt[r * HW + c]++;
   }
 }
-
-function renderHeatmap(cw,ch){
-  if(!heatmapCanvas){
-    heatmapCanvas=document.createElement('canvas');
-    heatmapCanvas.width=HMAP_W;
-    heatmapCanvas.height=HMAP_H;
-    heatmapCtx=heatmapCanvas.getContext('2d');
-  }
+function renderHeatmap() {
+  if (!hmCanvas) { hmCanvas = document.createElement('canvas'); hmCanvas.width = HW; hmCanvas.height = HH; hmCtx = hmCanvas.getContext('2d'); }
   buildHeatmap();
-  const img=heatmapCtx.createImageData(HMAP_W,HMAP_H);
-  const d=img.data;
-  for(let i=0;i<HMAP_W*HMAP_H;i++){
-    const t=heatmapCount[i]>0 ? heatmapData[i]/heatmapCount[i] : -1;
-    let r=10,g=14,b=26;
-    if(t>=0){
-      const idx=colorIdx(t);
-      const col=COLOR_LUT[idx];
-      const m=col.match(/\d+/g);
-      r=+m[0]; g=+m[1]; b=+m[2];
-    }
-    d[i*4]=r; d[i*4+1]=g; d[i*4+2]=b; d[i*4+3]=255;
+  const img = hmCtx.createImageData(HW, HH), d = img.data;
+  for (let i = 0; i < HW * HH; i++) {
+    let r = 10, g = 14, b = 26;
+    if (hmCnt[i] > 0) { const m = COLOR_LUT[colorIdx(hmData[i] / hmCnt[i])].match(/\d+/g); r = +m[0]; g = +m[1]; b = +m[2]; }
+    d[i * 4] = r; d[i * 4 + 1] = g; d[i * 4 + 2] = b; d[i * 4 + 3] = 255;
   }
-  heatmapCtx.putImageData(img,0,0);
-  ctx.imageSmoothingEnabled=true;
-  ctx.imageSmoothingQuality='high';
-  ctx.drawImage(heatmapCanvas,0,0,cw,ch);
+  hmCtx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(hmCanvas, 0, 0, SIM_W, SIM_H);
 }
 
-function drawScene(cw, ch){
-  const sc=scale;
-  const offX=(cw-SIM_W*sc)/2;
-  const offY=(ch-SIM_H*sc)/2;
-
-  ctx.save();
-  ctx.translate(offX,offY);
-  ctx.scale(sc,sc);
-
-  ctx.globalAlpha=0.25;
-  const roomFills=[
-    [0, G.basY1, G.houseX2, G.basY2-G.basY1,'#1e1b4b'],
-    [0, G.rdcY1, G.houseX2, G.rdcY2-G.rdcY1,'#1e293b'],
-    [G.verX1,G.verY1,G.verX2-G.verX1,G.verY2-G.verY1,'#0d3f2b'],
-    [0, G.r1Y1, G.houseX2, G.r1Y2-G.r1Y1,'#1e293b'],
-    [0, G.r2Y1, G.houseX2, G.r1Y1-G.r2Y1,'#172032'],
-  ];
-  for(const [x,y,w,h,col] of roomFills){
-    ctx.fillStyle=col; ctx.fillRect(x,y,w,h);
+function drawFans() {
+  for (const fan of fans) {
+    fan.bladeAngle = (fan.bladeAngle || 0) + 0.09 * fan.strength;
+    const r = 14, arrowLen = r + 14;
+    // Cone
+    ctx.save(); ctx.translate(fan.x, fan.y); ctx.rotate(fan.angle);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 65, -Math.PI / 4, Math.PI / 4); ctx.closePath();
+    ctx.fillStyle = 'rgba(96,165,250,0.07)'; ctx.fill(); ctx.restore();
+    // Body
+    ctx.beginPath(); ctx.arc(fan.x, fan.y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(96,165,250,0.15)'; ctx.fill();
+    // Blades
+    ctx.save(); ctx.translate(fan.x, fan.y); ctx.rotate(fan.bladeAngle);
+    for (let b = 0; b < 4; b++) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath(); ctx.arc(r * 0.35, 0, r * 0.48, -0.45, 0.45);
+      ctx.strokeStyle = 'rgba(147,197,253,0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
+    }
+    ctx.restore();
+    // Arrow
+    const ax = fan.x + Math.cos(fan.angle) * arrowLen, ay = fan.y + Math.sin(fan.angle) * arrowLen;
+    ctx.beginPath(); ctx.moveTo(fan.x, fan.y); ctx.lineTo(ax, ay);
+    ctx.strokeStyle = 'rgba(250,204,21,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.save(); ctx.translate(ax, ay); ctx.rotate(fan.angle);
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-7, -4); ctx.lineTo(-7, 4); ctx.closePath();
+    ctx.fillStyle = 'rgba(250,204,21,0.9)'; ctx.fill(); ctx.restore();
+    // Rotate handle
+    ctx.beginPath(); ctx.arc(ax, ay, 5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(250,204,21,0.75)'; ctx.fill();
+    // Fan label
+    ctx.font = '9px Segoe UI'; ctx.fillStyle = '#93c5fd'; ctx.textAlign = 'center';
+    ctx.fillText('#' + (fan.id + 1), fan.x, fan.y + r + 10);
   }
-  ctx.globalAlpha=1;
+}
 
-  ctx.globalAlpha=0.45;
-  renderHeatmap(SIM_W, SIM_H);
-  ctx.globalAlpha=1;
-
-  ctx.save();
-  const PR2 = PARTICLE_R*1.4;
-  for(let i=0;i<N;i++){
-    ctx.fillStyle=COLOR_LUT[colorIdx(pt[i])];
-    ctx.beginPath();
-    ctx.arc(px[i],py[i],PR2,0,Math.PI*2);
+function drawOpeningIndicators() {
+  for (const op of openings) {
+    // Click target dot
+    ctx.beginPath(); ctx.arc(op.simX, op.simY, 4, 0, Math.PI * 2);
+    ctx.fillStyle = op.isOpen ? 'rgba(16,185,129,0.6)' : 'rgba(148,163,184,0.25)';
     ctx.fill();
-  }
-  ctx.restore();
-
-  for(const w of walls){
-    ctx.beginPath();
-    ctx.moveTo(w.x1,w.y1);
-    ctx.lineTo(w.x2,w.y2);
-    if(w.type==='glass'){
-      ctx.strokeStyle='rgba(147,210,255,0.75)';
-      ctx.lineWidth=2.5;
-      ctx.setLineDash([4,3]);
-    } else if(w.type==='ground'){
-      ctx.strokeStyle='rgba(100,80,40,0.6)';
-      ctx.lineWidth=4;
-      ctx.setLineDash([]);
-    } else {
-      ctx.strokeStyle='rgba(180,190,210,0.85)';
-      ctx.lineWidth=2;
-      ctx.setLineDash([]);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
-
-  for(const rad of radiators){
-    ctx.fillStyle = state.heat ? 'rgba(255,120,30,0.85)' : 'rgba(80,80,100,0.5)';
-    ctx.fillRect(rad.x,rad.y,rad.w,rad.h);
-    if(state.heat){
-      ctx.shadowColor='rgba(255,100,20,0.6)';
-      ctx.shadowBlur=8;
-      ctx.fillRect(rad.x,rad.y,rad.w,rad.h);
-      ctx.shadowBlur=0;
+    if (op.isOpen) {
+      // Green gap highlight over wall segments
+      for (const seg of op.wallSegs) {
+        ctx.beginPath(); ctx.moveTo(seg.x1, seg.y1); ctx.lineTo(seg.x2, seg.y2);
+        ctx.strokeStyle = 'rgba(16,185,129,0.7)'; ctx.lineWidth = 3; ctx.setLineDash([4, 2]); ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
   }
+}
 
-  ctx.font='bold 10px Segoe UI,sans-serif';
-  ctx.fillStyle='rgba(200,210,230,0.7)';
-  ctx.textAlign='center';
-  const labels=[
-    [100,G.basY1+30,'BASEMENT/CAVE'],
-    [100,G.rdcY1+30,'HALLWAY'],
-    [300,G.rdcY1+30,'KITCHEN'],
-    [560,G.rdcY1+30,'SALON'],
-    [850,G.verY1+30,'VERANDA'],
-    [115,G.r1Y1+30,'BABY ROOM'],
-    [350,G.r1Y1+30,'BATHROOM'],
-    [590,G.r1Y1+30,'PARENT ROOM'],
-    [350,G.r2Y1+15,'ATTIC R+2'],
-    [580,G.basY1+30,'ATELIER'],
+function drawScene(cw, ch) {
+  const { sc, offX, offY } = getTransform(cw, ch);
+  ctx.save(); ctx.translate(offX, offY); ctx.scale(sc, sc);
+
+  // Room fills
+  ctx.globalAlpha = 0.22;
+  const fills = [
+    [0, G.basY1, G.houseX2, G.basY2 - G.basY1, '#1e1b4b'],
+    [0, G.rdcY1, G.houseX2, G.rdcY2 - G.rdcY1, '#1e293b'],
+    [G.verX1, G.verY1, G.verX2 - G.verX1, G.verY2 - G.verY1, '#0d3f2b'],
+    [0, G.r1Y1, G.houseX2, G.r1Y2 - G.r1Y1, '#1e293b'],
+    [0, G.r2Y1, G.houseX2, G.r1Y1 - G.r2Y1, '#172032'],
   ];
-  for(const [x,y,txt] of labels){
-    ctx.fillText(txt,x,y);
+  for (const [x, y, w, h, c] of fills) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
+  ctx.globalAlpha = 1;
+
+  // Heatmap
+  ctx.globalAlpha = 0.45; renderHeatmap(); ctx.globalAlpha = 1;
+
+  // Particles
+  const PR2 = PARTICLE_R * 1.4;
+  for (let i = 0; i < N; i++) {
+    ctx.fillStyle = COLOR_LUT[colorIdx(pt[i])];
+    ctx.beginPath(); ctx.arc(px[i], py[i], PR2, 0, Math.PI * 2); ctx.fill();
   }
 
-  ctx.font='12px Segoe UI';
-  ctx.fillStyle=state.summer?'rgba(255,180,30,0.9)':'rgba(100,180,255,0.9)';
-  ctx.fillText(state.summer?'☀ SUMMER':'❄ WINTER', SIM_W-55, 18);
+  // Walls
+  for (const w of walls) {
+    if (w.openingId && openWallIds.has(w.openingId)) continue; // skip open
+    ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2);
+    if (w.type === 'glass') { ctx.strokeStyle = 'rgba(147,210,255,0.72)'; ctx.lineWidth = 2.5; ctx.setLineDash([4, 3]); }
+    else if (w.type === 'ground') { ctx.strokeStyle = 'rgba(100,80,40,0.6)'; ctx.lineWidth = 4; ctx.setLineDash([]); }
+    else { ctx.strokeStyle = 'rgba(180,190,210,0.82)'; ctx.lineWidth = 2; ctx.setLineDash([]); }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
 
-  ctx.font='9px Segoe UI';
-  ctx.fillStyle='rgba(100,255,150,0.85)';
-  if(state.cave)     ctx.fillText('CAVE OPEN',12,G.basY1+15);
-  if(state.veranda)  ctx.fillText('VER OPEN',G.verX1+5,G.verY2-5);
-  if(state.velux)    ctx.fillText('VLX OPEN',140,G.r2Y1+12);
-  if(state.facade)   ctx.fillText('WIN OPEN',G.houseX2-45,G.rdcY1+12);
+  // Opening indicators
+  drawOpeningIndicators();
 
+  // Radiators
+  for (const rad of radiators) {
+    ctx.fillStyle = state.heat ? 'rgba(255,120,30,0.85)' : 'rgba(80,80,100,0.5)';
+    if (state.heat) { ctx.shadowColor = 'rgba(255,100,20,0.5)'; ctx.shadowBlur = 7; }
+    ctx.fillRect(rad.x, rad.y, rad.w, rad.h);
+    ctx.shadowBlur = 0;
+  }
+
+  // Fans
+  drawFans();
+
+  // Ripples
+  for (let i = ripples.length - 1; i >= 0; i--) {
+    const rp = ripples[i]; rp.r += 2.5; rp.a -= 0.045;
+    if (rp.a <= 0) { ripples.splice(i, 1); continue; }
+    ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(16,185,129,${rp.a})`; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // Labels
+  ctx.font = 'bold 9px Segoe UI,sans-serif'; ctx.fillStyle = 'rgba(200,210,230,0.65)'; ctx.textAlign = 'center';
+  const labels = [
+    [100, G.basY1 + 28, 'CAVE'], [100, G.rdcY1 + 25, 'HALL'], [290, G.rdcY1 + 25, 'CUISINE'],
+    [550, G.rdcY1 + 25, 'SALON'], [850, G.verY1 + 25, 'VERANDA'],
+    [115, G.r1Y1 + 25, 'BÉBÉ'], [350, G.r1Y1 + 25, 'SdB'], [585, G.r1Y1 + 25, 'PARENTS'],
+    [340, G.r2Y1 + 12, 'COMBLES'], [595, G.basY1 + 28, 'ATELIER'],
+  ];
+  for (const [x, y, t] of labels) ctx.fillText(t, x, y);
+  ctx.font = '11px Segoe UI';
+  ctx.fillStyle = state.summer ? 'rgba(255,180,30,.9)' : 'rgba(100,180,255,.9)';
+  ctx.fillText(state.summer ? '☀ ÉTÉ' : '❄ HIVER', SIM_W - 48, 14);
   ctx.restore();
 }
 
-let sumT=0, minT=1, maxT=0;
-
-function loop(ts){
+// ─── MAIN LOOP ─────────────────────────────────────────────────────────────────
+let lastTime = 0, fpsTime = 0, fpsCount = 0;
+function loop(ts) {
   requestAnimationFrame(loop);
-  const dt=Math.min((ts-lastTime)/1000, 0.05);
-  lastTime=ts;
-
+  const dt = Math.min((ts - lastTime) / 1000, 0.05); lastTime = ts;
   fpsCount++;
-  if(ts-fpsTime>500){
-    fps=Math.round(fpsCount*1000/(ts-fpsTime));
-    fpsCount=0; fpsTime=ts;
-    document.getElementById('fps-counter').textContent=fps+' FPS';
+  if (ts - fpsTime > 500) {
+    document.getElementById('fps-counter').textContent = Math.round(fpsCount * 1000 / (ts - fpsTime)) + ' FPS';
+    fpsCount = 0; fpsTime = ts;
   }
-
   step(dt);
-
-  sumT=0; minT=1; maxT=0;
-  for(let i=0;i<N;i++){
-    const t=pt[i];
-    sumT+=t;
-    if(t<minT) minT=t;
-    if(t>maxT) maxT=t;
+  let sumT = 0, minT = 1, maxT = 0;
+  for (let i = 0; i < N; i++) { sumT += pt[i]; if (pt[i] < minT) minT = pt[i]; if (pt[i] > maxT) maxT = pt[i]; }
+  if (N > 0) {
+    document.getElementById('s-avg').textContent = toCelsius(sumT / N).toFixed(1);
+    document.getElementById('s-min').textContent = toCelsius(minT).toFixed(0);
+    document.getElementById('s-max').textContent = toCelsius(maxT).toFixed(0);
+    document.getElementById('s-n').textContent = N;
   }
-  if(N>0){
-    document.getElementById('s-avg').textContent=(toCelsius(sumT/N)).toFixed(1);
-    document.getElementById('s-min').textContent=(toCelsius(minT)).toFixed(1);
-    document.getElementById('s-max').textContent=(toCelsius(maxT)).toFixed(1);
-    document.getElementById('s-n').textContent=N;
-  }
-
-  const cw=canvas.width/(window.devicePixelRatio||1);
-  const ch=canvas.height/(window.devicePixelRatio||1);
-  ctx.save();
-  ctx.fillStyle='#0a0e1a';
-  ctx.fillRect(0,0,cw*2,ch*2);
-  ctx.restore();
-
-  drawScene(cw,ch);
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  ctx.fillStyle = '#0a0e1a'; ctx.fillRect(0, 0, cw * 2, ch * 2);
+  drawScene(cw, ch);
 }
 
-function toggle(key){
-  if(key==='heat'){
-    state.heat=!state.heat;
-    const b=document.getElementById('btn-heat');
-    b.textContent=state.heat?'Radiators ON':'Radiators OFF';
-    b.className='btn-toggle'+(state.heat?' active active-warm':'');
-  } else if(key==='season'){
-    state.summer=!state.summer;
-    const b=document.getElementById('btn-season');
-    b.textContent=state.summer?'Summer':'Winter';
-    b.className='btn-toggle'+(state.summer?' active active-warm':'');
-  } else if(key==='cave'){
-    state.cave=!state.cave;
-    const b=document.getElementById('btn-cave');
-    b.className='btn-toggle'+(state.cave?' active active-open':'');
-  } else if(key==='veranda'){
-    state.veranda=!state.veranda;
-    const b=document.getElementById('btn-veranda');
-    b.className='btn-toggle'+(state.veranda?' active active-open':'');
-  } else if(key==='velux'){
-    state.velux=!state.velux;
-    const b=document.getElementById('btn-velux');
-    b.className='btn-toggle'+(state.velux?' active active-open':'');
-  } else if(key==='facade'){
-    state.facade=!state.facade;
-    const b=document.getElementById('btn-facade');
-    b.className='btn-toggle'+(state.facade?' active active-open':'');
-  } else if(key==='speed'){
-    state.speed=!state.speed;
-    const b=document.getElementById('btn-speed');
-    b.textContent=state.speed?'3x Speed':'1x Speed';
-    b.className='btn-toggle'+(state.speed?' active':'');
+// ─── UI CONTROLS ───────────────────────────────────────────────────────────────
+let controlsOpen = window.innerWidth >= 768;
+
+function toggleControls() {
+  controlsOpen = !controlsOpen;
+  document.getElementById('controls-panel').classList.toggle('collapsed', !controlsOpen);
+  document.getElementById('ctrl-toggle').classList.toggle('panel-open', controlsOpen);
+}
+
+function toggle(key) {
+  if (key === 'heat') {
+    state.heat = !state.heat;
+    const b = document.getElementById('btn-heat');
+    b.textContent = state.heat ? '🔥 ON' : '🔥 OFF';
+    b.className = 'btn-toggle' + (state.heat ? ' active active-warm' : '');
+  } else if (key === 'season') {
+    state.summer = !state.summer;
+    const b = document.getElementById('btn-season');
+    b.textContent = state.summer ? '☀ Été' : '❄ Hiver';
+    b.className = 'btn-toggle' + (state.summer ? ' active active-warm' : '');
+  } else if (key === 'speed') {
+    state.speed = !state.speed;
+    const b = document.getElementById('btn-speed');
+    b.textContent = state.speed ? '3×' : '1×';
+    b.className = 'btn-toggle' + (state.speed ? ' active' : '');
+  } else if (key === 'fanMode') {
+    interactionMode = interactionMode === 'fan' ? 'normal' : 'fan';
+    const b = document.getElementById('btn-fan-mode');
+    b.className = 'btn-toggle' + (interactionMode === 'fan' ? ' active' : '');
+    canvas.classList.toggle('fan-mode', interactionMode === 'fan');
   }
 }
 
+function toggleOpening(id) {
+  const op = openings.find(o => o.id === id);
+  if (!op) return;
+  op.isOpen = !op.isOpen;
+  rebuildOpenWallSet();
+  const btn = document.getElementById('op-btn-' + id);
+  if (btn) btn.className = 'btn-toggle' + (op.isOpen ? ' active active-open' : '');
+  addRipple(op.simX, op.simY);
+  refreshAccordionCounts();
+}
+
+function handleCanvasTap(sx, sy, isTouch) {
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  const sim = screenToSim(sx, sy, cw, ch);
+  if (interactionMode === 'fan') {
+    if (fans.length >= 3) return;
+    // Check if tapping existing fan for interaction
+    if (checkFanTap(sim.x, sim.y)) return;
+    addFan(sim.x, sim.y); return;
+  }
+  // Find closest opening within 22 sim units
+  let best = null, bestD = 22;
+  for (const op of openings) {
+    const d = Math.hypot(sim.x - op.simX, sim.y - op.simY);
+    if (d < bestD) { best = op; bestD = d; }
+  }
+  if (best) toggleOpening(best.id);
+}
+
+// ─── FAN INTERACTIONS ──────────────────────────────────────────────────────────
+function addFan(sx, sy) {
+  fans.push({ id: fanIdCtr++, x: sx, y: sy, angle: -Math.PI / 2, strength: 1.0, active: true, bladeAngle: 0 });
+  updateFanPanel();
+}
+
+function checkFanTap(sx, sy) {
+  for (const fan of fans) {
+    const arrowLen = 14 + 14;
+    const hx = fan.x + Math.cos(fan.angle) * arrowLen, hy = fan.y + Math.sin(fan.angle) * arrowLen;
+    if (Math.hypot(sx - hx, sy - hy) < 10) { activeFanDrag = { type: 'rotate', fan }; return true; }
+    if (Math.hypot(sx - fan.x, sy - fan.y) < 18) { activeFanDrag = { type: 'move', fan, ox: sx - fan.x, oy: sy - fan.y }; return true; }
+  }
+  return false;
+}
+
+function doFanDrag(screenX, screenY) {
+  if (!activeFanDrag) return;
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  const sim = screenToSim(screenX, screenY, cw, ch);
+  const fan = activeFanDrag.fan;
+  if (activeFanDrag.type === 'move') {
+    fan.x = Math.max(5, Math.min(SIM_W - 5, sim.x - activeFanDrag.ox));
+    fan.y = Math.max(5, Math.min(SIM_H - 5, sim.y - activeFanDrag.oy));
+  } else {
+    fan.angle = Math.atan2(sim.y - fan.y, sim.x - fan.x);
+  }
+}
+
+function removeFan(id) { fans = fans.filter(f => f.id !== id); updateFanPanel(); }
+function setFanStrength(id, v) { const f = fans.find(f => f.id === id); if (f) f.strength = +v; }
+
+function updateFanPanel() {
+  const list = document.getElementById('fan-list');
+  document.getElementById('fan-count').textContent = `(${fans.length}/3)`;
+  list.innerHTML = '';
+  for (const fan of fans) {
+    const row = document.createElement('div'); row.className = 'fan-row';
+    row.innerHTML = `<span>Ventilo #${fan.id + 1}</span>
+      <input type="range" min="0.1" max="2" step="0.1" value="${fan.strength}"
+             oninput="setFanStrength(${fan.id},this.value)">
+      <button onclick="removeFan(${fan.id})">✕</button>`;
+    list.appendChild(row);
+  }
+}
+
+// ─── OPENINGS ACCORDION UI ─────────────────────────────────────────────────────
+const ZONE_LABELS = { basement: 'Sous-sol', rdc: 'RDC', veranda: 'Véranda', r1: 'R+1', r2: 'R+2 Combles' };
+
+function buildOpeningsUI() {
+  const container = document.getElementById('openings-accordion');
+  if (!container) return;
+  container.innerHTML = '';
+  const zones = ['basement', 'rdc', 'veranda', 'r1', 'r2'];
+  for (const zone of zones) {
+    const zOps = openings.filter(o => o.zone === zone);
+    if (!zOps.length) continue;
+    const grp = document.createElement('div'); grp.className = 'acc-group';
+    const header = document.createElement('div'); header.className = 'acc-header';
+    const openCount = zOps.filter(o => o.isOpen).length;
+    header.innerHTML = `<span>${ZONE_LABELS[zone]}</span><span>${openCount ? '(' + openCount + ' ouvert' + (openCount > 1 ? 's' : '') + ')' : '▾'}</span>`;
+    header.onclick = () => body.classList.toggle('open');
+    const body = document.createElement('div'); body.className = 'acc-body';
+    for (const op of zOps) {
+      const btn = document.createElement('button');
+      btn.id = 'op-btn-' + op.id; btn.className = 'btn-toggle' + (op.isOpen ? ' active active-open' : '');
+      btn.textContent = op.label; btn.onclick = () => toggleOpening(op.id);
+      body.appendChild(btn);
+    }
+    grp.appendChild(header); grp.appendChild(body);
+    container.appendChild(grp);
+  }
+}
+
+function refreshAccordionCounts() {
+  const zones = ['basement', 'rdc', 'veranda', 'r1', 'r2'];
+  for (const zone of zones) {
+    const zOps = openings.filter(o => o.zone === zone);
+    const cnt = zOps.filter(o => o.isOpen).length;
+    const headers = document.querySelectorAll('.acc-header');
+    for (const h of headers) {
+      if (h.querySelector('span:first-child')?.textContent === ZONE_LABELS[zone]) {
+        h.querySelector('span:last-child').textContent = cnt ? `(${cnt} ouvert${cnt > 1 ? 's' : ''})` : '▾';
+      }
+    }
+  }
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────────────────
 resize();
+// Sync panel visibility with initial controlsOpen state
+document.getElementById('controls-panel').classList.toggle('collapsed', !controlsOpen);
+document.getElementById('ctrl-toggle').classList.toggle('panel-open', controlsOpen);
 spawnParticles();
-requestAnimationFrame(ts=>{lastTime=ts; requestAnimationFrame(loop);});
+requestAnimationFrame(ts => { lastTime = ts; requestAnimationFrame(loop); });
 </script>
 </body>
 </html>
